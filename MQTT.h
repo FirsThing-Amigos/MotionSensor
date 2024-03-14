@@ -17,6 +17,7 @@ public:
   static void publishMessage(const String& message);
   static void sendHeartBeat();
   static String getDeviceID();
+  static bool isMqttConnected();
 
 private:
   static bool initializeMqttConfig();

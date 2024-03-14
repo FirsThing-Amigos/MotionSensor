@@ -329,9 +329,13 @@ void MQTT::sendHeartBeat() {
   }
 }
 
+bool MQTT::isMqttConnected() {
+  return client.connected();
+}
+
 void MQTT::handleMQTT() {
   // Handle the regular MQTT client
-  if (!client.connected()) {
+  if (!MQTT::isMqttConnected()) {
     reconnect();
   } else {
     client.loop();

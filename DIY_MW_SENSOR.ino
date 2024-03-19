@@ -2,9 +2,9 @@
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
 #include <ArduinoOTA.h>
+#include <ArduinoJson.h>
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
-#include <ArduinoJson.h>
 #include "MQTT.h"
 
 const char* defaultSsid = "yugg";
@@ -15,7 +15,7 @@ String password;
 
 ESP8266WebServer server(80);
 
-int ldrPin = 5;
+int ldrPin = 17;
 int microPin = 4;
 int relayPin = 13;
 // int pirPin = 14;  // Uncomment this line if PIR is connected/available
@@ -26,12 +26,13 @@ int pirMotion = -1;
 int motion = -1;
 int relayState = -1;
 int pval = -1;
+int ldrVal = -1;
 
 bool alarm = false;
 bool hotspotActive = false;
 unsigned long lastMotionTime = 0;
 unsigned long lastPrintTime = 0;
-unsigned long waitTime = 1 * 60 * 1000;
+unsigned long waitTime = 60000;
 int maxAttempts = 100;
 
 void setup() {
@@ -46,7 +47,6 @@ void loop() {
   if (shouldRestart) {
     restartESP();
   }
-
   handleServers();
   readSensors();
   updateDeviceState();
@@ -54,22 +54,17 @@ void loop() {
 }
 
 void initializeDevices() {
-  EEPROM.begin(182);
-  // Read SSID and password from EEPROM
+  EEPROM.begin(128);
   ssid = readStringFromEEPROM(0, 32);
   password = readStringFromEEPROM(32, 64);
-
   pinMode(relayPin, OUTPUT);
   pinMode(microPin, INPUT);
   pinMode(ldrPin, INPUT);
-
 #ifdef pirPin
   pinMode(pirPin, INPUT);
 #endif
-
   readSensors();
   updateDeviceState();
-  Serial.println("Initial motion state:" + String(motion));
 }
 
 String readStringFromEEPROM(int start, int end) {
@@ -89,7 +84,9 @@ void readSensors() {
 }
 
 void readLDRSensor() {
-  ldrState = digitalRead(ldrPin);
+  // ldrState = digitalRead(ldrPin);
+  ldrVal = analogRead(ldrPin);
+  ldrState = ldrVal > 800 ? HIGH : LOW;
 }
 
 void readMicrowaveSensor() {
@@ -103,60 +100,31 @@ void readPIRSensor() {
 #endif
 
 void updateDeviceState() {
-
 #ifdef pirPin
   motion = (microMotion || pirMotion) ? 1 : 0;
 #else
-  motion = microMotion ? 1 : 0;
+  motion = microMotion;
 #endif
-
-  // Serial.println("Motion: " + String(motion));
 
   if (motion == HIGH) {
     lastMotionTime = millis();
-  }
-
-  if (pval != motion) {
-    // Serial.println("a");
-    if (motion == HIGH) {
-      // Serial.println("b");
-      if (millis() - lastPrintTime > 500) {
-        Serial.println("");
-        Serial.println("Motion Detected!");
-        lastPrintTime = millis();  // Update lastPrintTime when printing
-      }
-      if (!alarm) {
-        // Serial.println("c");
-        Serial.println("");
-        Serial.println("Alarm turned on.");
-        digitalWrite(relayPin, HIGH);
-        relayState = HIGH;
-        alarm = true;
-      } else if (relayState == LOW) {
-        digitalWrite(relayPin, HIGH);
-        relayState = HIGH;
-      }
-    } else {
-      // Serial.println("d");
-      if (millis() - lastPrintTime > 500) {
-        Serial.println("");
-        Serial.println("No Motion Detected!");
-        lastPrintTime = millis();  // Update lastPrintTime when printing
-      }
+    if (!alarm) {
+      Serial.println("");
+      Serial.println("Alarm turned on.");
+      digitalWrite(relayPin, HIGH);
+      relayState = HIGH;
+      alarm = true;
+    } else if (relayState == LOW) {
+      digitalWrite(relayPin, HIGH);
+      relayState = HIGH;
     }
-    pval = motion;
   } else {
-    // Serial.println("e");
-    if (millis() - lastMotionTime >= waitTime && motion == LOW && alarm == true) {
+    if (millis() - lastMotionTime >= waitTime && alarm) {
       Serial.println("");
       Serial.println("Alarm turned off.");
       digitalWrite(relayPin, LOW);
       relayState = LOW;
       alarm = false;
-    }
-    if (millis() - lastPrintTime > 5000) {
-      Serial.print(".");
-      lastPrintTime = millis();  // Update lastPrintTime when printing
     }
   }
 }
@@ -164,26 +132,20 @@ void updateDeviceState() {
 void initializeConnections() {
   connectToWifi();
   if (isWifiConnected()) {
-    // Serial.println("Wifi is Connected");
-    // Initialize MQTT connection using MqttManager
     MQTT::initialize();
   } else {
-    // Serial.println("Wifi Not Connected");
     setupHotspot();
   }
 }
 
-
 void connectToWifi() {
-
   if (ssid.length() == 0 || password.length() == 0) {
-    Serial.println("SSID OR Password is Missing");
+    Serial.println("SSID or Password is Missing");
   } else {
     Serial.print("Connecting to WiFi: ");
-    Serial.print(ssid);
+    Serial.println(ssid);
     WiFi.begin(ssid.c_str(), password.c_str());
     int attempts = 0;
-
     while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
       delay(500);
       Serial.print(".");
@@ -191,20 +153,17 @@ void connectToWifi() {
     }
   }
 
-
-#ifdef defaultSsid
   if (!isWifiConnected()) {
-    Serial.print("Connecting to WiFi: ");
-    Serial.print(defaultSsid);
+    Serial.print("Fallback to default WiFi: ");
+    Serial.println(defaultSsid);
     WiFi.begin(defaultSsid, defaultPassword);
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
       delay(500);
       Serial.print(".");
       attempts++;
     }
   }
-#endif
 
   if (isWifiConnected()) {
     Serial.println("");
@@ -215,6 +174,7 @@ void connectToWifi() {
     Serial.println("Failed to connect to WiFi.");
   }
 }
+
 
 bool isWifiConnected() {
   return WiFi.status() == WL_CONNECTED;
@@ -228,8 +188,7 @@ void setupHotspot() {
   WiFi.softAPConfig(ip, ip, subnet);
   WiFi.softAP("ESP8266AP-MoSen");
   hotspotActive = true;
-
-  Serial.println("Hotspot Name: " + String("ESP8266AP-MoSen"));
+  Serial.println("Hotspot Name: ESP8266AP-MoSen");
   Serial.println("Hotspot IP address: " + WiFi.softAPIP().toString());
 }
 
@@ -256,70 +215,40 @@ void startHttpServer() {
 
 void setupOTA() {
   Serial.println("Initializing OTA...");
-  // Set the OTA hostname (optional)
   ArduinoOTA.setHostname("ESP8266-MoSenOTA");
-
-  // Set the OTA password (optional)
   ArduinoOTA.setPassword("admin");
-
   ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else {  // U_SPIFFS
-      type = "filesystem";
-    }
-
-    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    Serial.println("Start updating " + type);
+    Serial.println("Start updating...");
   });
-
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
-    restartESP();
+    ESP.restart();
   });
-
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
-
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) {
-      Serial.println("Auth Failed");
-    } else if (error == OTA_BEGIN_ERROR) {
-      Serial.println("Begin Failed");
-    } else if (error == OTA_CONNECT_ERROR) {
-      Serial.println("Connect Failed");
-    } else if (error == OTA_RECEIVE_ERROR) {
-      Serial.println("Receive Failed");
-    } else if (error == OTA_END_ERROR) {
-      Serial.println("End Failed");
-    }
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
-
   ArduinoOTA.begin();
   Serial.println("OTA Initialized");
 }
 
 void handleServers() {
-  if (!isWifiConnected()) {
-    reconnectToWifi();
+  if (!isWifiConnected() && !hotspotActive) {
+    Serial.println("WiFi disconnected. Attempting to reconnect...");
+    connectToWifi();
   }
-
   server.handleClient();
   ArduinoOTA.handle();
 
   if (isWifiConnected()) {
     MQTT::handleMQTT();
-  }
-}
-
-void reconnectToWifi() {
-  // Check if WiFi is disconnected
-  if (!hotspotActive) {
-    Serial.println("WiFi disconnected. Attempting to reconnect...");
-    connectToWifi();  // Implement your own function to reconnect to WiFi
   }
 }
 
@@ -332,6 +261,7 @@ void saveWifiCredentials(const char* ssid, const char* password) {
   EEPROM.put(32, passwordCharArray);
   EEPROM.commit();
 }
+
 void handleRoot() {
   Serial.println("Entered handle root route:");
   // Define CSS for styling the icons based on their state
@@ -492,6 +422,9 @@ void handleSensorStatus() {
   doc["pir_sensor_pin_state"] = pirMotion;
 #endif
   doc["ldr_sensor_pin"] = ldrPin;
+  if (ldrPin == 17) {
+    doc["ldr_sensor_val"] = ldrVal;
+  }
   doc["ldr_sensor_pin_state"] = ldrState;
   doc["relay_pin"] = relayPin;
   doc["relay_pin_state"] = relayState;
@@ -544,7 +477,6 @@ void handleRelayState() {
     server.send(400, "text/plain", "Invalid request");
   }
 }
-
 void handleSetWaitTime() {
   if (server.hasArg("waitTime")) {
     unsigned long newWaitTime = server.arg("waitTime").toInt();
@@ -555,7 +487,6 @@ void handleSetWaitTime() {
   }
 }
 
-// Handler function for OTA update route
 void handleOTAUpdate() {
   if (server.hasArg("url")) {
     String url = server.arg("url");
@@ -574,7 +505,7 @@ void handleRestart() {
 void restartESP() {
   Serial.println("Restarting device!...");
   // Add a small delay for the message to be printed
-  delay(2000);
+  delay(5000);
   ESP.restart();
 }
 
@@ -583,7 +514,6 @@ void handleNotFound() {
   server.send(404, "text/plain", message);
 }
 
-// Function to perform OTA update using HTTP URL
 void performOTAUpdate(const String& url) {
   // Start the OTA update process
   Serial.println("Starting OTA update from URL: " + url);

@@ -6,19 +6,24 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "MQTT.h"
+#include "Variables.h"
 
-// Static members initialization
-String MQTT::mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
-int MQTT::mqttPort = 8883;
-String MQTT::thingName = "ESP-Devices";
-String MQTT::pubTopic = "sensor/" + getDeviceID() + "state/pub";
-String MQTT::subTopic = "sensor/" + getDeviceID() + "state/sub";
+WiFiClientSecure net;
+PubSubClient client(net);
+
+const char* MQTT::mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
+const int MQTT::mqttPort = 8883;
+const char* MQTT::thingName = "ESP-Devices";
+const char* MQTT::subTopic = "sensor/state/sub";
+const char* MQTT::pubTopic = "sensor/state/pub";
 unsigned long MQTT::lastReconnectAttempt = 0;
 unsigned long MQTT::lastMillis = 0;
 unsigned long MQTT::previousMillis = 0;
+unsigned long MQTT::lastHeartbeatTime = 0;
 const long MQTT::interval = 5000;
-String chipId = String(ESP.getChipId());
-String deviceMacAddress = WiFi.macAddress();
+const long MQTT::heartbeatInterval = 60000;  // 1 minute
+const char* MQTT::deviceMacAddress = WiFi.macAddress().c_str();
+const char* MQTT::chipId = String(ESP.getChipId()).c_str();
 
 static const char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
@@ -102,16 +107,10 @@ BearSSL::X509List cert(cacert);
 BearSSL::X509List client_crt(client_cert);
 BearSSL::PrivateKey key(privkey);
 
-WiFiClientSecure net;
-PubSubClient client(net);
-
 int8_t TIME_ZONE = +5.5;
 #define TIME_ZONE +5.5
 unsigned long mqttConnectStartTime;
 unsigned long mqttConnectTimeout = 1 * 60 * 1000;
-
-unsigned long MQTT::lastHeartbeatTime = 0;
-const long MQTT::heartbeatInterval = 60000;  // 1 minute
 
 void MQTT::initialize() {
 
@@ -129,12 +128,12 @@ void MQTT::initialize() {
   NTPConnect();
   net.setTrustAnchors(&cert);
   net.setClientRSACert(&client_crt, &key);
-  client.setServer(MQTT::mqttHost.c_str(), MQTT::mqttPort);
+  client.setServer(MQTT::mqttHost, MQTT::mqttPort);
   client.setCallback(messageReceived);
   Serial.println("Connecting to AWS IOT");
   mqttConnectStartTime = millis();
 
-  while (!client.connect(MQTT::thingName.c_str())) {
+  while (!client.connect(MQTT::thingName)) {
     Serial.print(".");
     if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
       Serial.println("AWS connection timed out");
@@ -147,7 +146,7 @@ void MQTT::initialize() {
   }
 
   if (client.connected()) {
-    client.subscribe(MQTT::subTopic.c_str());
+  client.subscribe(MQTT::subTopic);
     Serial.println("AWS IoT Connected!");
   }
 }
@@ -226,26 +225,21 @@ void MQTT::messageReceived(char* topic, byte* payload, unsigned int length) {
 
 void MQTT::publishSwitchState(int switchNumber, int switchState) {
   if (client.connected()) {
+    // Check if pubTopic is not empty or null
+    if (MQTT::pubTopic && MQTT::pubTopic[0] != '\0') {
+      StaticJsonDocument<200> doc;
+      doc["time"] = millis();
+      doc["switchId"] = switchNumber;
+      doc["status"] = switchState;
+      char jsonBuffer[512];
+      serializeJson(doc, jsonBuffer);
+      Serial.print("Publish message: ");
+      Serial.println(jsonBuffer);
 
-    if (pubTopic.isEmpty()) {
-      pubTopic = MQTT::pubTopic;
+      client.publish(MQTT::pubTopic, jsonBuffer);
+    } else {
+      Serial.println("pubTopic is not initialized or empty!");
     }
-
-    StaticJsonDocument<200> doc;
-    doc["time"] = millis();
-    doc["switchId"] = switchNumber;
-    doc["status"] = switchState;
-    char jsonBuffer[512];
-    serializeJson(doc, jsonBuffer);
-    Serial.print("Publish message: ");
-    Serial.println(jsonBuffer);
-
-    client.publish(MQTT::pubTopic.c_str(), jsonBuffer);
-
-    Serial.print("Switch State Published To Queue: ");
-    Serial.println(MQTT::pubTopic);
-  } else {
-    Serial.println("AWS Mqtt Client Not Connected!");
   }
 }
 
@@ -255,7 +249,6 @@ void MQTT::publishDeviceInformation() {
     StaticJsonDocument<200> doc;
     doc["time"] = millis();
     doc["deviceId"] = getDeviceID();
-    // doc["localIp"] = WiFiManager::getDeviceIpAddress();
     doc["localMacAddress"] = deviceMacAddress;
     char jsonBuffer[512];
     serializeJson(doc, jsonBuffer);
@@ -343,10 +336,10 @@ void MQTT::handleMQTT() {
 }
 
 String MQTT::getDeviceID() {
-  // Get the MAC address
-  String macAddress = deviceMacAddress;
-  // Remove colons
-  macAddress.replace(":", "");
-  // Combine the MAC address and chip ID to create a unique identifier
-  return macAddress + "-" + chipId;
+  // Change this line:
+  char deviceID[50];
+  strcpy(deviceID, chipId);
+  strcat(deviceID, "-");
+  strcat(deviceID, deviceMacAddress);
+  return String(deviceID);
 }

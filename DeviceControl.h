@@ -7,6 +7,7 @@ void initializeDevices();
 void readSensors();
 void readLDRSensor();
 void readMicrowaveSensor();
-void readPIRSensor();  // Uncomment this line if PIR is connected/available
+// void readPIRSensor();  // Uncomment this line if PIR is connected/available
 void updateDeviceState();
+String getDeviceStatus();
 #endif

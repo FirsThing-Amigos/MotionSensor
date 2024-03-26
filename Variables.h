@@ -2,29 +2,34 @@
 #define VARIABLES_H
 
 #include <Arduino.h>  // Include Arduino core library for data types
+#include <ESP8266WiFi.h>
+
+// #define DEBUG
+// #define SOCKET
+// #define PIR;
 
 // Define global variables here
-extern const char* defaultSsid;
-extern const char* defaultPassword;
-
-extern String ssid;
-extern String password;
+const char otaUrl[] PROGMEM = "";
+extern IPAddress serverIP;
 
 extern int ldrPin;
 extern int microPin;
 extern int relayPin;
-extern int pirPin;  // Uncomment this line if PIR is connected/available
-
-extern int ldrState;
-extern int microMotion;
+#ifdef PIR
+extern int pirPin;
 extern int pirMotion;
+#endif
+
+extern int light;
+extern int microMotion;
 extern int motion;
-extern int relayState;
 extern int pval;
 extern int ldrVal;
+extern int lightOnThreshold;
+extern int lightOffThreshold;
 
 extern bool shouldRestart;
-extern bool otaMode;
+extern bool isOtaMode;
 extern bool alarm;
 extern bool hotspotActive;
 

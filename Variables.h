@@ -20,22 +20,23 @@ extern int pirPin;
 extern int pirMotion;
 #endif
 
+extern int maxAttempts;
 extern int light;
 extern int microMotion;
-extern int motion;
-extern int pval;
+extern int pirMotion;
 extern int ldrVal;
-extern int lightOnThreshold;
-extern int lightOffThreshold;
+extern int pval;
+extern int lowLightThreshold;
+extern int highLightThreshold;
 
 extern bool shouldRestart;
 extern bool isOtaMode;
-extern bool alarm;
 extern bool hotspotActive;
 
 extern unsigned long lastMotionTime;
-extern unsigned long lastPrintTime;
 extern unsigned long waitTime;
-extern int maxAttempts;
+extern unsigned long coolOffPeriod;
+extern unsigned long countDownLightOff;
+extern unsigned long coolOffCountDown;
 
 #endif

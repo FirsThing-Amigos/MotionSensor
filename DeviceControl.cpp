@@ -14,16 +14,16 @@ int microMotion = -1;
 #ifdef PIR
 int pirMotion = -1;
 #endif
-int motion = -1;
 int pval = -1;
 int ldrVal = -1;  // Low Light 116, High Light < 85
-int lightOnThreshold = 110;
-int lightOffThreshold = lightOnThreshold - 25;
+int lowLightThreshold = 230;
+int highLightThreshold = 200;  // Threshold for high light level
 
-bool alarm = false;
 unsigned long lastMotionTime = 0;
-unsigned long lastPrintTime = 0;
-unsigned long waitTime = 60000;
+unsigned long waitTime = 60;       // 60 Seconds
+unsigned long coolOffPeriod = 10;  // 10 Seconds
+unsigned long countDownLightOff = 0;
+unsigned long coolOffCountDown = 0;
 
 void initializeDevices() {
   if (!isOtaMode) {
@@ -49,7 +49,7 @@ void readSensors() {
 void readLDRSensor() {
   // light = digitalRead(ldrPin);
   ldrVal = analogRead(ldrPin);
-  light = ldrVal > lightOnThreshold ? LOW : HIGH;
+  light = ldrVal > lowLightThreshold ? LOW : HIGH;
 }
 
 void readMicrowaveSensor() {
@@ -65,44 +65,33 @@ void readPIRSensor() {
 
 void updateDeviceState() {
 #ifdef PIR
-  motion = (microMotion || pirMotion) ? 1 : 0;  // Uncomment this line if PIR is connected/available
-#else
-  motion = microMotion;  // Uncomment this line if PIR is not connected/available
+  microMotion = (microMotion || pirMotion) ? 1 : 0;  // Uncomment this line if PIR is connected/available
 #endif
-
-  if (motion == HIGH) {
+  if (microMotion == 1) {
     lastMotionTime = millis();
   }
-
   // ldrVal : Low Light 116, High Light < 85
-  if (ldrVal > lightOnThreshold) {
-
-    if (motion == HIGH && !alarm) {
-#ifndef DEBUG
-      Serial.println(F(""));
-      Serial.println(F("Alarm turned on."));
-#endif
-      digitalWrite(relayPin, HIGH);
-      alarm = true;
-      delay(2000);
-      int currentLdrVal = analogRead(ldrPin);
-      // Check if the value of analogRead(ldrPin) is within ±10 of ldrVal
-      if (abs(currentLdrVal - ldrVal) > 10) {
-        lightOffThreshold = currentLdrVal - 30;
+  if (ldrVal > lowLightThreshold) {  // Low light level
+    // Scenario 1
+    if (microMotion == 1) {
+      if (countDownLightOff == 0) {
+        digitalWrite(relayPin, HIGH);  // Activate relay
+        coolOffCountDown = millis();
       }
-    } else {
-      if (millis() - lastMotionTime >= waitTime && alarm) {
-#ifndef DEBUG
-        Serial.println(F(""));
-        Serial.println(F("Alarm turned off."));
-#endif
-        digitalWrite(relayPin, LOW);
-        alarm = false;
-      }
+      countDownLightOff = millis();
+    } else if ((countDownLightOff + 1000 * waitTime) < millis() && microMotion == 0) {
+      digitalWrite(relayPin, LOW);  // Deactivate relay
+      countDownLightOff = 0;
     }
-  } else if (digitalRead(relayPin) == HIGH && ldrVal < lightOffThreshold) {
-    digitalWrite(relayPin, LOW);
-    alarm = false;
+
+  } else if ((coolOffCountDown + 1000 * coolOffPeriod) < millis()) {
+    // Scenario 2
+    if ((countDownLightOff + 1000 * waitTime) < millis() && ldrVal < highLightThreshold) {
+      digitalWrite(relayPin, LOW);  // Deactivate relay
+      countDownLightOff = 0;
+    }
+  } else if (ldrVal < highLightThreshold) {
+    highLightThreshold = ldrVal - 10;
   }
 }
 
@@ -121,12 +110,11 @@ String getDeviceStatus() {
   doc["ldr_sensor_pin_state"] = light;
   doc["relay_pin"] = relayPin;
   doc["relay_pin_state"] = digitalRead(relayPin);
-  doc["alarm_status"] = alarm;
   doc["last_motion_time"] = millis() - lastMotionTime;
   doc["last_motion_state"] = pval;
-  doc["current_motion_state"] = motion;
-  doc["light_on_threshold"] = lightOnThreshold;
-  doc["light_off_threshold"] = lightOffThreshold;
+  doc["current_motion_state"] = microMotion;
+  doc["low_light_threshold"] = lowLightThreshold;
+  doc["high_light_threshold"] = highLightThreshold;
 
   String response;
   serializeJson(doc, response);

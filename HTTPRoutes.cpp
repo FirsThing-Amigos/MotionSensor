@@ -13,7 +13,7 @@ void startHttpServer() {
   server.on("/updateVariable", HTTP_POST, handleUpdateVariable);
   server.onNotFound(handleNotFound);
   server.begin();
-#ifndef DEBUG
+#ifdef DEBUG
   Serial.println(F("HTTP Server Started!"));
 #endif
 }
@@ -160,7 +160,7 @@ void handleRoot() {
          )" + fetch
                  + R"(
         function updateIcons(data) {
-          const lightState = data["alarm_status"];
+          const lightState = data["relay_pin_state"];
           const lightStateElement = document.getElementById("light-status");
           if(lightStateElement){
             if(data["last_motion_time"]){
@@ -307,7 +307,7 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String& conte
 
 void performOTAUpdate(const String& url) {
 // Start the OTA update process
-#ifndef DEBUG
+#ifdef DEBUG
   Serial.print(F("Starting OTA update from URL: "));
   Serial.println(url);
 #endif
@@ -350,7 +350,7 @@ void handleHTTPClients(ESP8266WebServer& server) {
 }
 
 void restartESP() {
-#ifndef DEBUG
+#ifdef DEBUG
   Serial.println(F("Restarting device!..."));
 #endif
   delay(5000);
@@ -359,7 +359,9 @@ void restartESP() {
 
 bool isVariableDefined(const String& variableName) {
   static const String variableList[] = {
-    "shouldRestart", "otaMode", "otaUrl", "ssid", "password", "ldrPin", "microPin", "relayPin", "lightOnThreshold", "lightOffThreshold", "waitTime", "maxAttempts"
+    "shouldRestart", "otaMode", "otaUrl", "ssid", "password", "ldrPin", "microPin", "relayPin", "lowLightThreshold",
+    //  "brightLightThreshold",
+      "waitTime", "maxAttempts"
   };
 
   for (const auto& var : variableList) {
@@ -396,19 +398,19 @@ bool updateVariable(const String& variableName, const String& value) {
   } else if (variableName == "waitTime") {
     waitTime = value.toInt();
   } else if (variableName == "otaMode") {
-#ifndef DEBUG
+#ifdef DEBUG
     Serial.println(EEPROM.read(64));
 #endif
     EEPROM.write(64, true);
     EEPROM.commit();
-#ifndef DEBUG
+#ifdef DEBUG
     Serial.println(EEPROM.read(64));
 #endif
     shouldRestart = true;
-  } else if (variableName == "lightOnThreshold") {
-    lightOnThreshold = value.toInt();
-  } else if (variableName == "lightOffThreshold") {
-    lightOffThreshold = value.toInt();
+  } else if (variableName == "lowLightThreshold") {
+    lowLightThreshold = value.toInt();
+  // } else if (variableName == "brightLightThreshold") {
+    // brightLightThreshold = value.toInt();
   } else if (variableName == "shouldRestart") {
     shouldRestart = true;
   } else if (variableName == "otaUrl") {

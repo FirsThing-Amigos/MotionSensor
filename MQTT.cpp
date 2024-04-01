@@ -112,7 +112,7 @@ unsigned long mqttConnectStartTime;
 unsigned long mqttConnectTimeout = 1 * 60 * 1000;
 
 void initialize() {
-#ifndef DEBUG
+#ifdef DEBUG
   Serial.print(F("mqttServer ThingName: "));
   Serial.println(thingName);
   Serial.print(F("mqttServer Pub Topic: "));
@@ -123,7 +123,7 @@ void initialize() {
   net.setClientRSACert(&client_crt, &key);
   client.setServer(mqttHost, mqttPort);
 // client.setCallback(messageReceived);
-#ifndef DEBUG
+#ifdef DEBUG
   Serial.println(F("Connecting to AWS IOT"));
 #endif
   mqttConnectStartTime = millis();
@@ -132,7 +132,7 @@ void initialize() {
     Serial.print(".");
     if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
       // Serial.println(F("AWS connection timed out"));
-#ifndef DEBUG
+#ifdef DEBUG
       Serial.print(F("Failed to connect to AWS IoT, rc="));
       Serial.println(client.state());
 #endif
@@ -151,7 +151,7 @@ void initialize() {
 void reconnect() {
   if (!client.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
     lastReconnectAttempt = millis();
-#ifndef DEBUG
+#ifdef DEBUG
     Serial.println(F("Re-initiating Mqtt Connection"));
 #endif
     initialize();

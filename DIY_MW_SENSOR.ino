@@ -19,7 +19,7 @@ bool isOtaMode = false;
 ESP8266WebServer server(80);
 
 unsigned long lastWiFiCheckTime = 0;
-const unsigned long WiFiCheckInterval = 10000;
+const unsigned long WiFiCheckInterval = 60000;
 
 void setup() {
   Serial.begin(115200);
@@ -34,16 +34,17 @@ void setup() {
 }
 
 void loop() {
+  readSensors();
+  updateDeviceState();
+
   if (shouldRestart) {
     restartESP();
   }
 
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - lastWiFiCheckTime >= WiFiCheckInterval) {
-    lastWiFiCheckTime = currentMillis;
+  if (millis() - lastWiFiCheckTime >= WiFiCheckInterval) {
+    lastWiFiCheckTime = millis();
     if (!isWifiConnected() && !hotspotActive) {
-#ifndef DEBUG
+#ifdef DEBUG
       Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
 #endif
       connectToWifi();
@@ -51,12 +52,10 @@ void loop() {
   }
 
   handleServers();
-  readSensors();
-  updateDeviceState();
 #ifdef SOCKET
   publishSensorStatus();
 #endif
-  delay(500);
+  delay(200);
 }
 
 void initializeConnections(bool isOtaMode) {

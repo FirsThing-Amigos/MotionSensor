@@ -1,3 +1,4 @@
+#include "core_esp8266_features.h"
 #include <ArduinoJson.h>
 #include "DeviceControl.h"
 #include "Variables.h"
@@ -15,15 +16,14 @@ int microMotion = -1;
 int pirMotion = -1;
 #endif
 int pval = -1;
-int ldrVal = -1;  // Low Light 116, High Light < 85
+int ldrVal = -1;
 int lowLightThreshold = 230;
-int highLightThreshold = 200;  // Threshold for high light level
+int lightVariable = 20;
 
 unsigned long lastMotionTime = 0;
-unsigned long waitTime = 60;       // 60 Seconds
-unsigned long coolOffPeriod = 10;  // 10 Seconds
+unsigned long waitTime = 180;  // 60 Seconds
 unsigned long countDownLightOff = 0;
-unsigned long coolOffCountDown = 0;
+unsigned long countDownDayLight = 0;
 
 void initializeDevices() {
   if (!isOtaMode) {
@@ -33,8 +33,6 @@ void initializeDevices() {
 #ifdef PIR
     pinMode(pirPin, INPUT);
 #endif
-    readSensors();
-    updateDeviceState();
   }
 }
 
@@ -63,35 +61,76 @@ void readPIRSensor() {
 }
 #endif
 
+void setLightVariable() {
+  bool relayState = digitalRead(relayPin);
+  int lightOffVal = 0;
+  int lightOnVal = 0;
+  readLDRSensor();
+
+  if (relayState == HIGH) {
+    lightOnVal = ldrVal;
+    digitalWrite(relayPin, LOW);
+    delay(1000);
+    readLDRSensor();
+  }
+
+  lightOffVal = ldrVal;
+  digitalWrite(relayPin, HIGH);
+  delay(1000);
+  readLDRSensor();
+  if (lightOnVal == 0 || ldrVal < lightOnVal) {
+    lightOnVal = ldrVal;
+  }
+  digitalWrite(relayPin, LOW);
+  delay(1000);
+  readLDRSensor();
+  lightOffVal = max(lightOffVal, ldrVal);
+
+  digitalWrite(relayPin, HIGH);
+  delay(1000);
+  readLDRSensor();
+  lightOnVal = min(lightOnVal, ldrVal);
+
+  digitalWrite(relayPin, LOW);
+  delay(1000);
+  readLDRSensor();
+  lightOffVal = max(lightOffVal, ldrVal);
+
+  lightVariable = max(lightVariable, lightOffVal - lightOnVal) + 10;
+}
+
 void updateDeviceState() {
 #ifdef PIR
-  microMotion = (microMotion || pirMotion) ? 1 : 0;  // Uncomment this line if PIR is connected/available
+  microMotion = (microMotion || pirMotion) ? 1 : 0;
 #endif
+
+  bool relayState = digitalRead(relayPin);
+
   if (microMotion == 1) {
     lastMotionTime = millis();
   }
-  // ldrVal : Low Light 116, High Light < 85
-  if (ldrVal > lowLightThreshold) {  // Low light level
+
+  if ((relayState == LOW && ldrVal > lowLightThreshold) || (relayState == HIGH && ldrVal > (lowLightThreshold - lightVariable))) {  // Low light level
     // Scenario 1
+    countDownDayLight = 0;
+
     if (microMotion == 1) {
-      if (countDownLightOff == 0) {
-        digitalWrite(relayPin, HIGH);  // Activate relay
-        coolOffCountDown = millis();
+      if (relayState == LOW) {
+        digitalWrite(relayPin, HIGH);
+        delay(3000);
       }
       countDownLightOff = millis();
     } else if ((countDownLightOff + 1000 * waitTime) < millis() && microMotion == 0) {
-      digitalWrite(relayPin, LOW);  // Deactivate relay
-      countDownLightOff = 0;
+      digitalWrite(relayPin, LOW);
     }
-
-  } else if ((coolOffCountDown + 1000 * coolOffPeriod) < millis()) {
+  } else if (relayState == HIGH) {  // High light level
     // Scenario 2
-    if ((countDownLightOff + 1000 * waitTime) < millis() && ldrVal < highLightThreshold) {
-      digitalWrite(relayPin, LOW);  // Deactivate relay
-      countDownLightOff = 0;
+    if (countDownDayLight == 0) {
+      countDownDayLight = millis();
     }
-  } else if (ldrVal < highLightThreshold) {
-    highLightThreshold = ldrVal - 10;
+    if ((countDownDayLight + 60000) < millis()) {
+      digitalWrite(relayPin, LOW);  // Deactivate relay
+    }
   }
 }
 
@@ -111,10 +150,12 @@ String getDeviceStatus() {
   doc["relay_pin"] = relayPin;
   doc["relay_pin_state"] = digitalRead(relayPin);
   doc["last_motion_time"] = millis() - lastMotionTime;
+  doc["count_down_light_off"] = millis() - countDownLightOff;
+  doc["count_down_day_light"] = countDownDayLight == 0 ? countDownDayLight : (millis() - countDownDayLight);
   doc["last_motion_state"] = pval;
   doc["current_motion_state"] = microMotion;
   doc["low_light_threshold"] = lowLightThreshold;
-  doc["high_light_threshold"] = highLightThreshold;
+  doc["light_variable"] = lightVariable;
 
   String response;
   serializeJson(doc, response);

@@ -8,7 +8,7 @@ String password;
 IPAddress serverIP;
 
 bool hotspotActive = false;
-int maxAttempts = 100;
+int maxAttempts = 1000;
 
 void connectToWifi() {
   ssid = readStringFromEEPROM(0, 32);

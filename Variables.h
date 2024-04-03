@@ -37,6 +37,6 @@ extern unsigned long lastMotionTime;
 extern unsigned long waitTime;
 extern unsigned long coolOffPeriod;
 extern unsigned long countDownLightOff;
-extern unsigned long coolOffCountDown;
+extern unsigned long countDownDayLight;
 
 #endif

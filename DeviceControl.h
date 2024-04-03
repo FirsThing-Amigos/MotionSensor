@@ -10,6 +10,7 @@ void readMicrowaveSensor();
 #ifdef PIR
 void readPIRSensor();
 #endif
+void setLightVariable();
 void updateDeviceState();
 String getDeviceStatus();
 #endif

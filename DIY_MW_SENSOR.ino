@@ -31,6 +31,9 @@ void setup() {
   if (!isOtaMode) {
     initializeServers();
   }
+  setLightVariable();
+  readSensors();
+  updateDeviceState();
 }
 
 void loop() {

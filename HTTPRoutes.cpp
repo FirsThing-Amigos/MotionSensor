@@ -164,7 +164,7 @@ void handleRoot() {
           const lightStateElement = document.getElementById("light-status");
           if(lightStateElement){
             if(data["last_motion_time"]){
-              lightStateElement.textContent = data["last_motion_time"];
+              lightStateElement.textContent = data["last_motion_time"] + "<br>" + data["count_down_light_off"] + "</br>" + data["count_down_day_light"];
             }
             if(lightState){
               lightStateElement.classList.add('on');
@@ -361,7 +361,7 @@ bool isVariableDefined(const String& variableName) {
   static const String variableList[] = {
     "shouldRestart", "otaMode", "otaUrl", "ssid", "password", "ldrPin", "microPin", "relayPin", "lowLightThreshold",
     //  "brightLightThreshold",
-      "waitTime", "maxAttempts"
+    "waitTime", "maxAttempts"
   };
 
   for (const auto& var : variableList) {
@@ -409,7 +409,7 @@ bool updateVariable(const String& variableName, const String& value) {
     shouldRestart = true;
   } else if (variableName == "lowLightThreshold") {
     lowLightThreshold = value.toInt();
-  // } else if (variableName == "brightLightThreshold") {
+    // } else if (variableName == "brightLightThreshold") {
     // brightLightThreshold = value.toInt();
   } else if (variableName == "shouldRestart") {
     shouldRestart = true;

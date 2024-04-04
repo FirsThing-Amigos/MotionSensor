@@ -4,27 +4,31 @@
 #include <PubSubClient.h>
 #include <ESPAsyncTCP.h>
 #include <WiFiClientSecure.h>
-#include <ArduinoJson.h>
 #include "MQTT.h"
+#include "Variables.h"
 
-// Static members initialization
-String MQTT::mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
-int MQTT::mqttPort = 8883;
-String MQTT::thingName = "ESP-Devices";
-String MQTT::pubTopic = "sensor/" + getDeviceID() + "state/pub";
-String MQTT::subTopic = "sensor/" + getDeviceID() + "state/sub";
-unsigned long MQTT::lastReconnectAttempt = 0;
-unsigned long MQTT::lastMillis = 0;
-unsigned long MQTT::previousMillis = 0;
-const long MQTT::interval = 5000;
-String chipId = String(ESP.getChipId());
-String deviceMacAddress = WiFi.macAddress();
+WiFiClientSecure net;
+PubSubClient client(net);
+
+const char* mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
+const int mqttPort = 8883;
+const char* thingName = "athea-motion2";
+const char* subTopic = "sensor/state/sub";
+const char* pubTopic = "sensor/state/pub";
+unsigned long lastReconnectAttempt = 0;
+unsigned long lastMillis = 0;
+unsigned long previousMillis = 0;
+unsigned long lastHeartbeatTime = 0;
+const long interval = 5000;
+const long heartbeatInterval = 60000;  // 1 minute
+const char* deviceMacAddress = WiFi.macAddress().c_str();
+const char* chipId = String(ESP.getChipId()).c_str();
 
 static const char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
 ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
-b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTELz
 MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
 b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
 ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
@@ -102,44 +106,36 @@ BearSSL::X509List cert(cacert);
 BearSSL::X509List client_crt(client_cert);
 BearSSL::PrivateKey key(privkey);
 
-WiFiClientSecure net;
-PubSubClient client(net);
-
 int8_t TIME_ZONE = +5.5;
 #define TIME_ZONE +5.5
 unsigned long mqttConnectStartTime;
 unsigned long mqttConnectTimeout = 1 * 60 * 1000;
 
-unsigned long MQTT::lastHeartbeatTime = 0;
-const long MQTT::heartbeatInterval = 60000;  // 1 minute
+void initialize() {
+#ifdef DEBUG
+  Serial.print(F("mqttServer ThingName: "));
+  Serial.println(thingName);
+  Serial.print(F("mqttServer Pub Topic: "));
+  Serial.println(pubTopic);
+#endif
 
-void MQTT::initialize() {
-
-  Serial.print("mqttServer Host: ");
-  Serial.println(MQTT::mqttHost);
-  Serial.print("mqttServer Port: ");
-  Serial.println(MQTT::mqttPort);
-  Serial.print("mqttServer ThingName: ");
-  Serial.println(MQTT::thingName);
-  Serial.print("mqttServer Sub Topic: ");
-  Serial.println(MQTT::subTopic);
-  Serial.print("mqttServer Pub Topic: ");
-  Serial.println(MQTT::pubTopic);
-
-  NTPConnect();
   net.setTrustAnchors(&cert);
   net.setClientRSACert(&client_crt, &key);
-  client.setServer(MQTT::mqttHost.c_str(), MQTT::mqttPort);
-  client.setCallback(messageReceived);
-  Serial.println("Connecting to AWS IOT");
+  client.setServer(mqttHost, mqttPort);
+// client.setCallback(messageReceived);
+#ifdef DEBUG
+  Serial.println(F("Connecting to AWS IOT"));
+#endif
   mqttConnectStartTime = millis();
 
-  while (!client.connect(MQTT::thingName.c_str())) {
+  while (!client.connect(thingName)) {
     Serial.print(".");
     if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
-      Serial.println("AWS connection timed out");
-      Serial.print("Failed to connect to AWS IoT, rc=");
+      // Serial.println(F("AWS connection timed out"));
+#ifdef DEBUG
+      Serial.print(F("Failed to connect to AWS IoT, rc="));
       Serial.println(client.state());
+#endif
 
       break;
     }
@@ -147,202 +143,39 @@ void MQTT::initialize() {
   }
 
   if (client.connected()) {
-    client.subscribe(MQTT::subTopic.c_str());
-    Serial.println("AWS IoT Connected!");
+    client.subscribe(subTopic);
+    Serial.println(F("AWS IoT Connected!"));
   }
 }
 
-void MQTT::NTPConnect() {
-  Serial.println("Setting time using SNTP");
-  // setTime(12, 34, 56, 9, 9, 2023);
-  time_t nowish = 1510592825;
-
-  if (configureTime()) {
-    time_t currentTime = now();
-    Serial.println("done!");
-    struct tm timeinfo;
-    gmtime_r(&currentTime, &timeinfo);
-    Serial.print("Current time: ");
-    Serial.print(asctime(&timeinfo));
-  } else {
-    Serial.println("Time configuration failed");
-    // Handle the error condition here, such as retrying or reporting an error
-  }
-}
-
-bool MQTT::configureTime() {
-  configTime(TIME_ZONE * 3600, 0, "time.nist.gov", "pool.ntp.org");
-
-  // Wait for time configuration for a limited time
-  unsigned long configTimeout = millis() + 5000;  // Wait for up to 15 seconds
-  while (timeStatus() != timeSet && millis() < configTimeout) {
-    delay(1000);
-  }
-
-  return timeStatus() == timeSet;
-}
-
-void MQTT::reconnect() {
+void reconnect() {
   if (!client.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
     lastReconnectAttempt = millis();
-    Serial.println("Re-initiating Mqtt Connection");
-    MQTT::initialize();
+#ifdef DEBUG
+    Serial.println(F("Re-initiating Mqtt Connection"));
+#endif
+    initialize();
   }
 }
 
-void MQTT::messageReceived(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Received [");
-  Serial.print(topic);
-  Serial.print("]: ");
-  Serial.println((char*)payload);
-  Serial.println("...");
-
-  // Create a JSON document to store the configuration
-  DynamicJsonDocument jsonDocument(1024);
-
-  // Deserialize JSON data from the request
-  DeserializationError error = deserializeJson(jsonDocument, payload);
-
-  if (error) {
-    // Error handling: Failed to parse JSON data
-    Serial.println("Error: Failed to parse JSON data");
-  } else {
-    if (jsonDocument.containsKey("ota")) {
-      String otaUrl = jsonDocument["ota"].as<String>();
-      // Configuration::FirmwareConfig firmwareConfig;
-      // firmwareConfig.firmwareUrl = otaUrl.c_str();
-      // Configuration configInstance;
-      // Configuration::saveFirmwareConfig(firmwareConfig);
-      shouldRestart = true;
-
-    } else {
-      int switchNumber = jsonDocument["switch_id"].as<int>();
-      int switchState = jsonDocument["status"].as<int>();
-      String message = jsonDocument["message"].as<String>();
-    }
-  }
-  Serial.println();
+bool isMqttConnected() {
+  return client.connected();
 }
 
-void MQTT::publishSwitchState(int switchNumber, int switchState) {
-  if (client.connected()) {
-
-    if (pubTopic.isEmpty()) {
-      pubTopic = MQTT::pubTopic;
-    }
-
-    StaticJsonDocument<200> doc;
-    doc["time"] = millis();
-    doc["switchId"] = switchNumber;
-    doc["status"] = switchState;
-    char jsonBuffer[512];
-    serializeJson(doc, jsonBuffer);
-    Serial.print("Publish message: ");
-    Serial.println(jsonBuffer);
-
-    client.publish(MQTT::pubTopic.c_str(), jsonBuffer);
-
-    Serial.print("Switch State Published To Queue: ");
-    Serial.println(MQTT::pubTopic);
-  } else {
-    Serial.println("AWS Mqtt Client Not Connected!");
-  }
-}
-
-void MQTT::publishDeviceInformation() {
-  if (client.connected()) {
-    String infoPubTopic = "modules/info/publish";
-    StaticJsonDocument<200> doc;
-    doc["time"] = millis();
-    doc["deviceId"] = getDeviceID();
-    // doc["localIp"] = WiFiManager::getDeviceIpAddress();
-    doc["localMacAddress"] = deviceMacAddress;
-    char jsonBuffer[512];
-    serializeJson(doc, jsonBuffer);
-    Serial.print("Publish message: ");
-    Serial.println(jsonBuffer);
-    client.publish(infoPubTopic.c_str(), jsonBuffer);
-    Serial.print("Device Information Published To Queue: ");
-    Serial.println(infoPubTopic);
-  } else {
-    Serial.println("AWS Mqtt Client Not Connected!");
-  }
-}
-
-void MQTT::publishMessage(const String& message) {
-  if (client.connected()) {
-    String infoPubTopic = "modules/info/publish";
-    Serial.print("Publish message: ");
-    Serial.println(message);
-    client.publish(infoPubTopic.c_str(), message.c_str());
-    Serial.print("Info Published To Queue: ");
-    Serial.println(infoPubTopic);
-  } else {
-    Serial.println("AWS Mqtt Client Not Connected!");
-  }
-}
-
-void MQTT::sendHeartBeat() {
-  // Check if it's time to send the heartbeat
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - lastHeartbeatTime >= heartbeatInterval) {
-    // It's time to send the heartbeat
-
-    StaticJsonDocument<200> doc;
-
-    // Convert millis() to human-readable timestamp
-    time_t currentTime = now();  // Use TimeLib.h function to get current time
-    // Change the "time" field to human-readable format
-    char formattedTime[20];  // Adjust the size based on your needs
-    sprintf(formattedTime, "%04d-%02d-%02d %02d:%02d:%02d", year(currentTime), month(currentTime), day(currentTime), hour(currentTime), minute(currentTime), second(currentTime));
-
-    doc["time"] = formattedTime;
-    doc["device"] = getDeviceID();
-    // doc["ip"] = WiFiManager::getDeviceIpAddress();
-    doc["mac"] = deviceMacAddress;
-    // doc["wifi"] = WiFiManager::isWifiConnected();
-    // doc["int"] = Utilities::checkInternetConnectivity();
-    // doc["mqtt"] = Utilities::checkMqttUrlAccessible();
-
-    char jsonBuffer[512];
-    serializeJson(doc, jsonBuffer);
-    Serial.print("Publish message: ");
-    Serial.println(jsonBuffer);
-
-    if (client.connected()) {
-      String infoPubTopic = "modules/info/publish";
-      if (client.publish(infoPubTopic.c_str(), jsonBuffer)) {
-        Serial.print("Heartbeat Sent To Queue: ");
-      } else {
-        Serial.print("Heartbeat Sent To Queue Failed: ");
-        Serial.println(client.state());
-      }
-      Serial.println(infoPubTopic);
-
-    } else {
-      Serial.println("AWS Mqtt Client Not Connected!");
-    }
-
-    // Update the last heartbeat time
-    lastHeartbeatTime = currentMillis;
-  }
-}
-
-void MQTT::handleMQTT() {
+void handleMQTT() {
   // Handle the regular MQTT client
-  if (!client.connected()) {
-    reconnect();
+  if (!isMqttConnected()) {
+    // reconnect();
   } else {
     client.loop();
   }
 }
 
-String MQTT::getDeviceID() {
-  // Get the MAC address
-  String macAddress = deviceMacAddress;
-  // Remove colons
-  macAddress.replace(":", "");
-  // Combine the MAC address and chip ID to create a unique identifier
-  return macAddress + "-" + chipId;
+String getDeviceID() {
+  // Change this line:
+  char deviceID[50];
+  strcpy(deviceID, chipId);
+  strcat(deviceID, "-");
+  strcat(deviceID, deviceMacAddress);
+  return String(deviceID);
 }

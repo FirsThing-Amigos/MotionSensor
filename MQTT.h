@@ -4,10 +4,12 @@
 
 #include <Arduino.h>
 
-void initialize();
-void handleMQTT();
-String getDeviceID();
+void initMQTT();
+void NTPConnect();
+bool configureTime();
+void messageReceived(char* topic, byte* payload, unsigned int length);
 void reconnect();
 bool isMqttConnected();
-
+void pushDeviceState(bool heartBeat);
+void handleMQTT();
 #endif

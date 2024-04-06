@@ -3,9 +3,11 @@
 
 #include <Arduino.h>
 
-void connectToWifi();
+void initNetwork();
+void initWifi();
 bool isWifiConnected();
-void setupHotspot();
+void initHotspot();
+void deactivateHotspot();
 String readStringFromEEPROM(int start, int end);
 
 #endif

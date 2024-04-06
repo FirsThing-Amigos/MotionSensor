@@ -9,6 +9,9 @@
 // #define PIR;
 
 // Define global variables here
+extern const String deviceMacAddress;
+extern const String chipId;
+extern String deviceID;
 const char otaUrl[] PROGMEM = "";
 extern IPAddress serverIP;
 
@@ -27,15 +30,14 @@ extern int pirMotion;
 extern int ldrVal;
 extern int pval;
 extern int lowLightThreshold;
-extern int highLightThreshold;
 
+extern bool relayState;
 extern bool shouldRestart;
 extern bool isOtaMode;
 extern bool hotspotActive;
 
 extern unsigned long lastMotionTime;
-extern unsigned long waitTime;
-extern unsigned long coolOffPeriod;
+extern unsigned long lightOffWaitTime;
 extern unsigned long countDownLightOff;
 extern unsigned long countDownDayLight;
 

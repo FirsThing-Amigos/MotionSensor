@@ -1,7 +1,10 @@
 #include "core_esp8266_features.h"
-#include <ArduinoJson.h>
 #include "DeviceControl.h"
 #include "Variables.h"
+#include "MQTT.h"
+
+const String chipId = String(ESP.getChipId());
+String deviceID;
 
 int ldrPin = 17;  // 5 For Digital LDR And 17 For Analog
 int microPin = 4;
@@ -15,24 +18,43 @@ int microMotion = -1;
 #ifdef PIR
 int pirMotion = -1;
 #endif
+
+bool relayState = LOW;
+
 int pval = -1;
 int ldrVal = -1;
 int lowLightThreshold = 230;
 int lightVariable = 20;
 
 unsigned long lastMotionTime = 0;
-unsigned long waitTime = 180;  // 60 Seconds
+unsigned long lightOffWaitTime = 180;  // 60 Seconds
 unsigned long countDownLightOff = 0;
 unsigned long countDownDayLight = 0;
 
-void initializeDevices() {
-  if (!isOtaMode) {
-    pinMode(relayPin, OUTPUT);
-    pinMode(microPin, INPUT);
-    pinMode(ldrPin, INPUT);
-#ifdef PIR
-    pinMode(pirPin, INPUT);
+String getDeviceID() {
+  if (deviceID.length() == 0) {
+    String tempDeviceMacAddress = deviceMacAddress;
+    tempDeviceMacAddress.replace(":", "");
+    deviceID = String(chipId) + "-" + tempDeviceMacAddress;
+#ifdef DEBUG
+    Serial.println("Device ID: " + String(deviceID));
 #endif
+  }
+  return deviceID;
+}
+
+void initDevices() {
+  getDeviceID();
+  pinMode(relayPin, OUTPUT);
+  pinMode(microPin, INPUT);
+  pinMode(ldrPin, INPUT);
+#ifdef PIR
+  pinMode(pirPin, INPUT);
+#endif
+  if (!isOtaMode) {
+    setLightVariable();
+    readSensors();
+    updateRelay();
   }
 }
 
@@ -62,7 +84,7 @@ void readPIRSensor() {
 #endif
 
 void setLightVariable() {
-  bool relayState = digitalRead(relayPin);
+  relayState = digitalRead(relayPin);
   int lightOffVal = 0;
   int lightOnVal = 0;
   readLDRSensor();
@@ -99,7 +121,7 @@ void setLightVariable() {
   lightVariable = max(lightVariable, lightOffVal - lightOnVal) + 10;
 }
 
-void updateDeviceState() {
+void updateRelay() {
 #ifdef PIR
   microMotion = (microMotion || pirMotion) ? 1 : 0;
 #endif
@@ -117,11 +139,13 @@ void updateDeviceState() {
     if (microMotion == 1) {
       if (relayState == LOW) {
         digitalWrite(relayPin, HIGH);
+        pushDeviceState(false);
         delay(3000);
       }
       countDownLightOff = millis();
-    } else if ((countDownLightOff + 1000 * waitTime) < millis() && microMotion == 0) {
+    } else if ((countDownLightOff + 1000 * lightOffWaitTime) < millis() && microMotion == 0) {
       digitalWrite(relayPin, LOW);
+      pushDeviceState(false);
     }
   } else if (relayState == HIGH) {  // High light level
     // Scenario 2
@@ -130,34 +154,44 @@ void updateDeviceState() {
     }
     if ((countDownDayLight + 60000) < millis()) {
       digitalWrite(relayPin, LOW);  // Deactivate relay
+      pushDeviceState(false);
     }
   }
 }
 
 String getDeviceStatus() {
-  StaticJsonDocument<200> doc;
-  doc["microwave_sensor_pin"] = microPin;
-  doc["microwave_sensor_pin_state"] = microMotion;
-#ifdef PIR
-  doc["pir_sensor_pin"] = pirPin;           // Uncomment this line if PIR is connected/available
-  doc["pir_sensor_pin_state"] = pirMotion;  // Uncomment this line if PIR is connected/available
-#endif
-  doc["ldr_sensor_pin"] = ldrPin;
-  if (ldrPin == 17) {
-    doc["ldr_sensor_pin_val"] = ldrVal;
-  }
-  doc["ldr_sensor_pin_state"] = light;
-  doc["relay_pin"] = relayPin;
-  doc["relay_pin_state"] = digitalRead(relayPin);
-  doc["last_motion_time"] = millis() - lastMotionTime;
-  doc["count_down_light_off"] = millis() - countDownLightOff;
-  doc["count_down_day_light"] = countDownDayLight == 0 ? countDownDayLight : (millis() - countDownDayLight);
-  doc["last_motion_state"] = pval;
-  doc["current_motion_state"] = microMotion;
-  doc["low_light_threshold"] = lowLightThreshold;
-  doc["light_variable"] = lightVariable;
-
   String response;
-  serializeJson(doc, response);
+
+  response += "{";
+  response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
+  response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
+#ifdef PIR
+  response += "\"pir_sensor_pin\":" + String(pirPin) + ",";
+  response += "\"pir_sensor_pin_state\":" + String(pirMotion) + ",";
+#endif
+  response += "\"ldr_sensor_pin\":" + String(ldrPin) + ",";
+  if (ldrPin == 17) {
+    response += "\"ldr_sensor_pin_val\":" + String(ldrVal) + ",";
+  }
+  response += "\"ldr_sensor_pin_state\":" + String(light) + ",";
+  response += "\"relay_pin\":" + String(relayPin) + ",";
+  response += "\"relay_pin_state\":" + String(digitalRead(relayPin)) + ",";
+  response += "\"last_motion_time\":" + String(millis() - lastMotionTime) + ",";
+  response += "\"count_down_light_off\":" + String(millis() - countDownLightOff) + ",";
+  response += "\"count_down_day_light\":" + String(countDownDayLight == 0 ? countDownDayLight : (millis() - countDownDayLight)) + ",";
+  response += "\"last_motion_state\":" + String(pval) + ",";
+  response += "\"current_motion_state\":" + String(microMotion) + ",";
+  response += "\"low_light_threshold\":" + String(lowLightThreshold) + ",";
+  response += "\"light_variable\":" + String(lightVariable);
+  response += "}";
+
   return response;
+}
+
+void restartESP() {
+#ifdef DEBUG
+  Serial.println(F("Restarting device!..."));
+#endif
+  delay(5000);
+  ESP.restart();
 }

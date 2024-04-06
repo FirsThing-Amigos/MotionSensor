@@ -3,7 +3,8 @@
 
 #include <Arduino.h>
 
-void initializeDevices();
+String getDeviceID();
+void initDevices();
 void readSensors();
 void readLDRSensor();
 void readMicrowaveSensor();
@@ -11,6 +12,7 @@ void readMicrowaveSensor();
 void readPIRSensor();
 #endif
 void setLightVariable();
-void updateDeviceState();
+void updateRelay();
 String getDeviceStatus();
+void restartESP();
 #endif

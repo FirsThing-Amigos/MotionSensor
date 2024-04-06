@@ -1,11 +1,11 @@
-#include <ESP8266HTTPClient.h>
-#include <ESP8266httpUpdate.h>
+// #include <ESP8266HTTPClient.h>
+// #include <ESP8266httpUpdate.h>
 #include <EEPROM.h>
 #include "HTTPRoutes.h"
 #include "Variables.h"
 #include "DeviceControl.h"
 
-void startHttpServer() {
+void initHttpServer() {
   server.on("/", HTTP_GET, handleRoot);
   server.on("/status", HTTP_GET, handleSensorStatus);
   server.on("/wifi", HTTP_GET, handleWifiSettings);
@@ -305,63 +305,49 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String& conte
   server.send(statusCode, contentType, content);
 }
 
-void performOTAUpdate(const String& url) {
-// Start the OTA update process
-#ifdef DEBUG
-  Serial.print(F("Starting OTA update from URL: "));
-  Serial.println(url);
-#endif
+// void performOTAUpdate(const String& url) {
+// // Start the OTA update process
+// #ifdef DEBUG
+//   Serial.print(F("Starting OTA update from URL: "));
+//   Serial.println(url);
+// #endif
 
-  // Create an instance of WiFiClient
-  WiFiClient client;
+//   // Create an instance of WiFiClient
+//   WiFiClient client;
 
-  // Create an instance of HTTPClient
-  HTTPClient http;
-  http.begin(client, url);  // Specify the URL for the update
+//   // Create an instance of HTTPClient
+//   HTTPClient http;
+//   http.begin(client, url);  // Specify the URL for the update
 
-  int httpCode = http.GET();  // Start the GET request
+//   int httpCode = http.GET();  // Start the GET request
 
-  // Check the HTTP response code
-  if (httpCode == HTTP_CODE_OK) {
-    // Start the update process
-    t_httpUpdate_return ret = ESPhttpUpdate.update(http, url);
-    // Check the result of the update process
-    switch (ret) {
-      case HTTP_UPDATE_FAILED:
-        Serial.printf("HTTP update failed, error: %d\n", ESPhttpUpdate.getLastError());
-        break;
-      case HTTP_UPDATE_NO_UPDATES:
-        Serial.println(F("No updates available"));
-        break;
-      case HTTP_UPDATE_OK:
-        Serial.println(F("OTA update successful"));
-        break;
-    }
-  } else {
-    Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
-  }
+//   // Check the HTTP response code
+//   if (httpCode == HTTP_CODE_OK) {
+//     // Start the update process
+//     t_httpUpdate_return ret = ESPhttpUpdate.update(http, url);
+//     // Check the result of the update process
+//     switch (ret) {
+//       case HTTP_UPDATE_FAILED:
+//         Serial.printf("HTTP update failed, error: %d\n", ESPhttpUpdate.getLastError());
+//         break;
+//       case HTTP_UPDATE_NO_UPDATES:
+//         Serial.println(F("No updates available"));
+//         break;
+//       case HTTP_UPDATE_OK:
+//         Serial.println(F("OTA update successful"));
+//         break;
+//     }
+//   } else {
+//     Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
+//   }
 
-  // End the HTTPClient
-  http.end();
-}
-
-void handleHTTPClients(ESP8266WebServer& server) {
-  server.handleClient();
-}
-
-void restartESP() {
-#ifdef DEBUG
-  Serial.println(F("Restarting device!..."));
-#endif
-  delay(5000);
-  ESP.restart();
-}
+//   // End the HTTPClient
+//   http.end();
+// }
 
 bool isVariableDefined(const String& variableName) {
   static const String variableList[] = {
-    "shouldRestart", "otaMode", "otaUrl", "ssid", "password", "ldrPin", "microPin", "relayPin", "lowLightThreshold",
-    //  "brightLightThreshold",
-    "waitTime", "maxAttempts"
+    "shouldRestart", "otaMode", "otaUrl", "ldrPin", "microPin", "relayPin", "lightOffWaitTime"
   };
 
   for (const auto& var : variableList) {
@@ -374,19 +360,7 @@ bool isVariableDefined(const String& variableName) {
 }
 
 bool updateVariable(const String& variableName, const String& value) {
-  if (variableName == "ssid") {
-    char ssidCharArray[32];
-    strncpy(ssidCharArray, value.c_str(), sizeof(ssidCharArray));
-    EEPROM.put(0, ssidCharArray);
-    EEPROM.commit();
-
-  } else if (variableName == "password") {
-    char passwordCharArray[32];
-    strncpy(passwordCharArray, value.c_str(), sizeof(passwordCharArray));
-    EEPROM.put(32, passwordCharArray);
-    EEPROM.commit();
-
-  } else if (variableName == "ldrPin") {
+  if (variableName == "ldrPin") {
     ldrPin = value.toInt();
     pinMode(ldrPin, INPUT);
   } else if (variableName == "microPin") {
@@ -395,8 +369,8 @@ bool updateVariable(const String& variableName, const String& value) {
   } else if (variableName == "relayPin") {
     relayPin = value.toInt();
     pinMode(relayPin, OUTPUT);
-  } else if (variableName == "waitTime") {
-    waitTime = value.toInt();
+  } else if (variableName == "lightOffWaitTime") {
+    lightOffWaitTime = value.toInt();
   } else if (variableName == "otaMode") {
 #ifdef DEBUG
     Serial.println(EEPROM.read(64));
@@ -407,18 +381,19 @@ bool updateVariable(const String& variableName, const String& value) {
     Serial.println(EEPROM.read(64));
 #endif
     shouldRestart = true;
-  } else if (variableName == "lowLightThreshold") {
-    lowLightThreshold = value.toInt();
-    // } else if (variableName == "brightLightThreshold") {
-    // brightLightThreshold = value.toInt();
   } else if (variableName == "shouldRestart") {
     shouldRestart = true;
   } else if (variableName == "otaUrl") {
-    String otaUrl = server.arg("otaUrl");
-    performOTAUpdate(otaUrl);
+    return false;
+    // String otaUrl = server.arg("otaUrl");
+    // performOTAUpdate(otaUrl);
   } else {
     return false;
   }
 
   return true;
+}
+
+void handleHTTP(ESP8266WebServer& server) {
+  server.handleClient();
 }

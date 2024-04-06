@@ -1,11 +1,13 @@
 // MQTT File MQTT.cpp
-#include <ESP8266WiFi.h>
+// #include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
 #include <TimeLib.h>
 #include <PubSubClient.h>
 #include <ESPAsyncTCP.h>
-#include <WiFiClientSecure.h>
-#include "MQTT.h"
+// #include <ArduinoJson.h>
 #include "Variables.h"
+#include "DeviceControl.h"
+#include "MQTT.h"
 
 WiFiClientSecure net;
 PubSubClient client(net);
@@ -13,22 +15,18 @@ PubSubClient client(net);
 const char* mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
 const int mqttPort = 8883;
 const char* thingName = "athea-motion2";
-const char* subTopic = "sensor/state/sub";
-const char* pubTopic = "sensor/state/pub";
+
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
+unsigned long heartbeatInterval = 600000;  // 10 minute
 unsigned long lastHeartbeatTime = 0;
-const long interval = 5000;
-const long heartbeatInterval = 60000;  // 1 minute
-const char* deviceMacAddress = WiFi.macAddress().c_str();
-const char* chipId = String(ESP.getChipId()).c_str();
 
 static const char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
 ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
-b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTELz
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
 MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
 b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
 ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
@@ -111,18 +109,24 @@ int8_t TIME_ZONE = +5.5;
 unsigned long mqttConnectStartTime;
 unsigned long mqttConnectTimeout = 1 * 60 * 1000;
 
-void initialize() {
+void initMQTT() {
+  const String pubTopic = ("sensor/" + String(getDeviceID()) + "/state/pub");
 #ifdef DEBUG
   Serial.print(F("mqttServer ThingName: "));
   Serial.println(thingName);
   Serial.print(F("mqttServer Pub Topic: "));
   Serial.println(pubTopic);
+  Serial.print(F("mqttServer mqttHost: "));
+  Serial.println(mqttHost);
+  Serial.print(F("mqttServer mqttPort: "));
+  Serial.println(mqttPort);
 #endif
 
+  NTPConnect();
   net.setTrustAnchors(&cert);
   net.setClientRSACert(&client_crt, &key);
   client.setServer(mqttHost, mqttPort);
-// client.setCallback(messageReceived);
+  // client.setCallback(messageReceived);
 #ifdef DEBUG
   Serial.println(F("Connecting to AWS IOT"));
 #endif
@@ -143,10 +147,65 @@ void initialize() {
   }
 
   if (client.connected()) {
-    client.subscribe(subTopic);
+    // const String subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
+    // client.subscribe(subTopic.c_str());
     Serial.println(F("AWS IoT Connected!"));
   }
 }
+
+void NTPConnect() {
+  Serial.println("Setting time using SNTP");
+  // setTime(12, 34, 56, 9, 9, 2023);
+  time_t nowish = 1510592825;
+
+  if (configureTime()) {
+    time_t currentTime = now();
+    Serial.println("done!");
+    struct tm timeinfo;
+    gmtime_r(&currentTime, &timeinfo);
+    Serial.print("Current time: ");
+    Serial.print(asctime(&timeinfo));
+  } else {
+    Serial.println("Time configuration failed");
+    // Handle the error condition here, such as retrying or reporting an error
+  }
+}
+
+bool configureTime() {
+  configTime(TIME_ZONE * 3600, 0, "time.nist.gov", "pool.ntp.org");
+
+  // Wait for time configuration for a limited time
+  unsigned long configTimeout = millis() + 5000;  // Wait for up to 15 seconds
+  while (timeStatus() != timeSet && millis() < configTimeout) {
+    delay(1000);
+  }
+
+  return timeStatus() == timeSet;
+}
+
+// void messageReceived(char* topic, byte* payload, unsigned int length) {
+//   Serial.print("Received [");
+//   Serial.print(topic);
+//   Serial.print("]: ");
+//   Serial.println((char*)payload);
+//   Serial.println("...");
+
+//   // Create a JSON document to store the configuration
+//   DynamicJsonDocument jsonDocument(1024);
+
+//   // Deserialize JSON data from the request
+//   DeserializationError error = deserializeJson(jsonDocument, payload);
+
+//   if (error) {
+//     // Error handling: Failed to parse JSON data
+//     Serial.println("Error: Failed to parse JSON data");
+//   } else {
+//     int switchNumber = jsonDocument["switch_id"].as<int>();
+//     int switchState = jsonDocument["status"].as<int>();
+//     String message = jsonDocument["message"].as<String>();
+//   }
+//   Serial.println();
+// }
 
 void reconnect() {
   if (!client.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
@@ -154,7 +213,7 @@ void reconnect() {
 #ifdef DEBUG
     Serial.println(F("Re-initiating Mqtt Connection"));
 #endif
-    initialize();
+    initMQTT();
   }
 }
 
@@ -162,20 +221,37 @@ bool isMqttConnected() {
   return client.connected();
 }
 
+void pushDeviceState(bool heartBeat) {
+  // Create a JSON message
+  String jsonMessage = "{";
+  jsonMessage += "\"date\":\"" + String(year()) + "-" + String(month()) + "-" + String(day()) + "\",";
+  jsonMessage += "\"deviceID\":\"" + deviceID + "\",";
+  jsonMessage += "\"motionState\":" + String(microMotion) + ",";
+  jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
+  jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
+  jsonMessage += "\"heartBeat\":" + String(heartBeat);
+  jsonMessage += "}";
+
+  // Publish the JSON message to the MQTT topic
+  client.publish("sensors/heartbeat", jsonMessage.c_str());
+
+#ifdef DEBUG
+  Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
+  Serial.println(jsonMessage.c_str());
+#endif
+}
+
 void handleMQTT() {
   // Handle the regular MQTT client
   if (!isMqttConnected()) {
-    // reconnect();
+    reconnect();
   } else {
     client.loop();
+    // Check if enough time has passed since the last heartbeat
+    if (millis() - lastHeartbeatTime >= heartbeatInterval) {
+      pushDeviceState(true);
+      // Update the last heartbeat time
+      lastHeartbeatTime = millis();
+    }
   }
-}
-
-String getDeviceID() {
-  // Change this line:
-  char deviceID[50];
-  strcpy(deviceID, chipId);
-  strcat(deviceID, "-");
-  strcat(deviceID, deviceMacAddress);
-  return String(deviceID);
 }

@@ -1,4 +1,3 @@
-#include <ArduinoJson.h>
 #include "WebSocketHelper.h"
 #include "DeviceControl.h"
 

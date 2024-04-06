@@ -10,7 +10,7 @@
 #ifdef SOCKET
 #include <WebSocketsServer.h>
 #include "WebSocketHelper.h"
-WebSocketsServer webSocketServer(81);  // WebSocket server on port 81
+WebSocketsServer webSocketServer(81);
 #endif
 
 bool shouldRestart = false;
@@ -26,19 +26,14 @@ void setup() {
   Serial.println("");
   EEPROM.begin(128);
   isOtaMode = (EEPROM.read(64) == 1);
-  initializeDevices();
-  initializeConnections(isOtaMode);
-  if (!isOtaMode) {
-    initializeServers();
-  }
-  setLightVariable();
-  readSensors();
-  updateDeviceState();
+  initDevices();
+  initNetwork();
+  initServers();
 }
 
 void loop() {
   readSensors();
-  updateDeviceState();
+  updateRelay();
 
   if (shouldRestart) {
     restartESP();
@@ -50,7 +45,9 @@ void loop() {
 #ifdef DEBUG
       Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
 #endif
-      connectToWifi();
+      initNetwork();
+    } else if (hotspotActive) {
+      deactivateHotspot();
     }
   }
 
@@ -61,22 +58,16 @@ void loop() {
   delay(200);
 }
 
-void initializeConnections(bool isOtaMode) {
-  connectToWifi();
-  if (!isWifiConnected()) {
-    setupHotspot();
-  } else if (!isOtaMode) {
-    initializeDevices();
-  } else {
+void initServers() {
+  if (isOtaMode) {
     setupOTA();
-  }
-}
-
-void initializeServers() {
-  startHttpServer();
+  } else {
+    initHttpServer();
 #ifdef SOCKET
-  initWebSocketServer();
+    initWebSocketServer();
 #endif
+    initMQTT();
+  }
 }
 
 void handleServers() {
@@ -86,7 +77,7 @@ void handleServers() {
 
   } else {
 
-    handleHTTPClients(server);
+    handleHTTP(server);
 
     if (isWifiConnected()) {
       handleMQTT();

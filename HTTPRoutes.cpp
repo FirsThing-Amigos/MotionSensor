@@ -1,9 +1,12 @@
-// #include <ESP8266HTTPClient.h>
-// #include <ESP8266httpUpdate.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
+
 #include <EEPROM.h>
 #include "HTTPRoutes.h"
 #include "Variables.h"
 #include "DeviceControl.h"
+
+const char otaUrl[] PROGMEM = "";
 
 void initHttpServer() {
   server.on("/", HTTP_GET, handleRoot);
@@ -305,6 +308,30 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String& conte
   server.send(statusCode, contentType, content);
 }
 
+void performOTAUpdate() {
+  Serial.println("Checking for updates...");
+
+  WiFiClient client;  // Create a WiFiClient object
+  HTTPClient http;
+
+  // Begin the HTTPClient with the WiFiClient object and the OTA URL
+  if (!http.begin(client, otaUrl)) {
+    Serial.println("Failed to begin HTTP connection");
+    return;
+  }
+
+  int httpCode = http.GET();  // Perform the HTTP GET request
+
+  if (httpCode == HTTP_CODE_OK) {
+    WiFiClient* stream = http.getStreamPtr();
+    ESPhttpUpdate.update(*stream, "", 80, otaUrl);  // Perform OTA update with URL parameter and port 80
+  } else {
+    Serial.println("Failed to check for updates");
+  }
+
+  http.end();  // End the HTTPClient
+}
+
 // void performOTAUpdate(const String& url) {
 // // Start the OTA update process
 // #ifdef DEBUG
@@ -347,7 +374,7 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String& conte
 
 bool isVariableDefined(const String& variableName) {
   static const String variableList[] = {
-    "shouldRestart", "otaMode", "otaUrl", "ldrPin", "microPin", "relayPin", "lightOffWaitTime"
+    "disabled", "shouldRestart", "otaMode", "otaUrl", "ldrPin", "microPin", "relayPin", "lightOffWaitTime"
   };
 
   for (const auto& var : variableList) {
@@ -360,7 +387,13 @@ bool isVariableDefined(const String& variableName) {
 }
 
 bool updateVariable(const String& variableName, const String& value) {
-  if (variableName == "ldrPin") {
+  if (variableName == "disabled") {
+    disabled = value.toInt();
+    EEPROM.write(65, disabled);
+    EEPROM.commit();
+    shouldRestart = true;
+
+  } else if (variableName == "ldrPin") {
     ldrPin = value.toInt();
     pinMode(ldrPin, INPUT);
   } else if (variableName == "microPin") {
@@ -384,14 +417,17 @@ bool updateVariable(const String& variableName, const String& value) {
   } else if (variableName == "shouldRestart") {
     shouldRestart = true;
   } else if (variableName == "otaUrl") {
-    return false;
-    // String otaUrl = server.arg("otaUrl");
-    // performOTAUpdate(otaUrl);
+    updateOtaUrl(value.c_str());
+    performOTAUpdate();
   } else {
     return false;
   }
 
   return true;
+}
+
+void updateOtaUrl(const char* newUrl) {
+  strncpy((char*)otaUrl, newUrl, sizeof(otaUrl));
 }
 
 void handleHTTP(ESP8266WebServer& server) {

@@ -12,10 +12,11 @@ void handleWifiSettings();
 void handleSaveWifi();
 void handleUpdateVariable();
 void handleNotFound();
+void updateOtaUrl(const char* newUrl);
 void handleHTTP(ESP8266WebServer& server);
 bool isVariableDefined(const String& variableName);
 bool updateVariable(const String& variableName, const String& value);
-void performOTAUpdate(const String& url);
+void performOTAUpdate();
 void sendServerResponse(int statusCode, bool isJsonResponse, const String& content);
 void saveWifiCredentials(const char* ssid, const char* password);
 

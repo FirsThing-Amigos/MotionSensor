@@ -13,6 +13,7 @@
 WebSocketsServer webSocketServer(81);
 #endif
 
+bool disabled = false;
 bool shouldRestart = false;
 bool isOtaMode = false;
 
@@ -25,6 +26,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("");
   EEPROM.begin(128);
+  disabled = (EEPROM.read(65) == 1);
   isOtaMode = (EEPROM.read(64) == 1);
   initDevices();
   initNetwork();
@@ -32,8 +34,13 @@ void setup() {
 }
 
 void loop() {
-  readSensors();
-  updateRelay();
+  if (disabled) {
+    if (digitalRead(relayPin) == LOW) {
+      digitalWrite(relayPin, HIGH);
+    }
+  } else {
+    readSensors();
+  }
 
   if (shouldRestart) {
     restartESP();
@@ -66,7 +73,9 @@ void initServers() {
 #ifdef SOCKET
     initWebSocketServer();
 #endif
-    initMQTT();
+    if (isWifiConnected() && !disabled) {
+      initMQTT();
+    }
   }
 }
 
@@ -79,7 +88,7 @@ void handleServers() {
 
     handleHTTP(server);
 
-    if (isWifiConnected()) {
+    if (isWifiConnected() && !disabled) {
       handleMQTT();
     }
   }

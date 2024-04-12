@@ -1,5 +1,6 @@
 #include "core_esp8266_features.h"
 #include "DeviceControl.h"
+#include "HTTPRoutes.h"
 #include "Variables.h"
 #include "MQTT.h"
 
@@ -27,7 +28,7 @@ int lowLightThreshold = 230;
 int lightVariable = 20;
 
 unsigned long lastMotionTime = 0;
-unsigned long lightOffWaitTime = 180;  // 60 Seconds
+unsigned long lightOffWaitTime = 120;  // 60 Seconds
 unsigned long countDownLightOff = 0;
 unsigned long countDownDayLight = 0;
 
@@ -139,13 +140,11 @@ void updateRelay() {
     if (microMotion == 1) {
       if (relayState == LOW) {
         digitalWrite(relayPin, HIGH);
-        pushDeviceState(false);
         delay(3000);
       }
       countDownLightOff = millis();
-    } else if ((countDownLightOff + 1000 * lightOffWaitTime) < millis() && microMotion == 0) {
+    } else if ((countDownLightOff + 1000 * lightOffWaitTime) < millis() && microMotion == 0 && relayState == HIGH) {
       digitalWrite(relayPin, LOW);
-      pushDeviceState(false);
     }
   } else if (relayState == HIGH) {  // High light level
     // Scenario 2
@@ -154,8 +153,11 @@ void updateRelay() {
     }
     if ((countDownDayLight + 60000) < millis()) {
       digitalWrite(relayPin, LOW);  // Deactivate relay
-      pushDeviceState(false);
     }
+  }
+
+  if (relayState != digitalRead(relayPin)) {
+    pushDeviceState(0);
   }
 }
 
@@ -163,6 +165,7 @@ String getDeviceStatus() {
   String response;
 
   response += "{";
+  response += "\"device_id\":" + String(deviceID) + ",";
   response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
   response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
 #ifdef PIR

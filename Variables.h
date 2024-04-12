@@ -12,7 +12,7 @@
 extern const String deviceMacAddress;
 extern const String chipId;
 extern String deviceID;
-const char otaUrl[] PROGMEM = "";
+extern const char otaUrl[] PROGMEM;
 extern IPAddress serverIP;
 
 extern int ldrPin;
@@ -31,6 +31,7 @@ extern int ldrVal;
 extern int pval;
 extern int lowLightThreshold;
 
+extern bool disabled;
 extern bool relayState;
 extern bool shouldRestart;
 extern bool isOtaMode;

@@ -1,16 +1,19 @@
 // MQTT File MQTT.cpp
 // #include <ESP8266WiFi.h>
+// #include <ArduinoJson.h>
 #include <WiFiClientSecure.h>
 #include <TimeLib.h>
 #include <PubSubClient.h>
 #include <ESPAsyncTCP.h>
-// #include <ArduinoJson.h>
+#include <EEPROM.h>
 #include "Variables.h"
 #include "DeviceControl.h"
+#include "HTTPRoutes.h"
 #include "MQTT.h"
 
 WiFiClientSecure net;
 PubSubClient client(net);
+
 
 const char* mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
 const int mqttPort = 8883;
@@ -183,29 +186,50 @@ bool configureTime() {
   return timeStatus() == timeSet;
 }
 
-// void messageReceived(char* topic, byte* payload, unsigned int length) {
-//   Serial.print("Received [");
-//   Serial.print(topic);
-//   Serial.print("]: ");
-//   Serial.println((char*)payload);
-//   Serial.println("...");
+void messageReceived(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Received [");
+  Serial.print(topic);
+  Serial.print("]: ");
 
-//   // Create a JSON document to store the configuration
-//   DynamicJsonDocument jsonDocument(1024);
+  // Print payload as string
+  for (unsigned int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
 
-//   // Deserialize JSON data from the request
-//   DeserializationError error = deserializeJson(jsonDocument, payload);
+  // Convert payload to string
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
 
-//   if (error) {
-//     // Error handling: Failed to parse JSON data
-//     Serial.println("Error: Failed to parse JSON data");
-//   } else {
-//     int switchNumber = jsonDocument["switch_id"].as<int>();
-//     int switchState = jsonDocument["status"].as<int>();
-//     String message = jsonDocument["message"].as<String>();
-//   }
-//   Serial.println();
-// }
+  // Extract information from the message
+  String command = message.substring(0, message.indexOf(' '));
+  String valueStr = message.substring(message.indexOf(' ') + 1);
+
+  if (command.equals("otaUrl")) {
+    updateOtaUrl(valueStr.c_str());
+    performOTAUpdate();
+
+  } else if (command.equals("disabled")) {
+    bool value = valueStr.equalsIgnoreCase("true");
+    if (value) {
+      disabled = valueStr.toInt();
+      EEPROM.write(65, disabled);
+      EEPROM.commit();
+      shouldRestart = true;
+      Serial.println("Motion Sensor disabled");
+    } else {
+      disabled = 0;
+      EEPROM.write(65, disabled);
+      EEPROM.commit();
+      shouldRestart = true;
+      Serial.println("Motion Sensor enabled");
+    }
+  } else {
+    Serial.println("Unknown command");
+  }
+}
 
 void reconnect() {
   if (!client.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
@@ -221,7 +245,7 @@ bool isMqttConnected() {
   return client.connected();
 }
 
-void pushDeviceState(bool heartBeat) {
+void pushDeviceState(int heartBeat) {
   // Create a JSON message
   String jsonMessage = "{";
   jsonMessage += "\"date\":\"" + String(year()) + "-" + String(month()) + "-" + String(day()) + "\",";
@@ -249,7 +273,7 @@ void handleMQTT() {
     client.loop();
     // Check if enough time has passed since the last heartbeat
     if (millis() - lastHeartbeatTime >= heartbeatInterval) {
-      pushDeviceState(true);
+      pushDeviceState(1);
       // Update the last heartbeat time
       lastHeartbeatTime = millis();
     }

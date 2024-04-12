@@ -10,6 +10,6 @@ bool configureTime();
 void messageReceived(char* topic, byte* payload, unsigned int length);
 void reconnect();
 bool isMqttConnected();
-void pushDeviceState(bool heartBeat);
+void pushDeviceState(int heartBeat);
 void handleMQTT();
 #endif

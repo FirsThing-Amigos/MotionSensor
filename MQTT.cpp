@@ -1,10 +1,8 @@
 // MQTT File MQTT.cpp
-// #include <ESP8266WiFi.h>
-// #include <ArduinoJson.h>
 #include <WiFiClientSecure.h>
 #include <TimeLib.h>
 #include <PubSubClient.h>
-#include <ESPAsyncTCP.h>
+// #include <ESPAsyncTCP.h>
 #include <EEPROM.h>
 #include "Variables.h"
 #include "DeviceControl.h"

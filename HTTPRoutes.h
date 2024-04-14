@@ -12,7 +12,6 @@ void handleWifiSettings();
 void handleSaveWifi();
 void handleUpdateVariable();
 void handleNotFound();
-void updateOtaUrl(const char* newUrl);
 void handleHTTP(ESP8266WebServer& server);
 bool isVariableDefined(const String& variableName);
 bool updateVariable(const String& variableName, const String& value);

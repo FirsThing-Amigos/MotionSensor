@@ -57,7 +57,7 @@ void initHotspot() {
   IPAddress ip(192, 168, 1, 1);
   IPAddress subnet(255, 255, 255, 0);
   WiFi.softAPConfig(ip, ip, subnet);
-  WiFi.softAP("ESP8266AP-MoSen");
+  WiFi.softAP(("MotionSensor: " + String(deviceID)).c_str());
   serverIP = WiFi.softAPIP();
   hotspotActivationTime = millis();
   hotspotActive = true;
@@ -67,8 +67,7 @@ void initHotspot() {
 }
 
 void deactivateHotspot() {
-  if (hotspotActive && millis() - hotspotActivationTime >= hotspotDeactivationDelay) {
-    // Deactivate hotspot if it has been active for the specified duration
+  if (hotspotActive && ((millis() - hotspotActivationTime) >= hotspotDeactivationDelay)) {
     Serial.println(F("Deactivating hotspot..."));
     WiFi.softAPdisconnect();
     hotspotActive = false;

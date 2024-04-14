@@ -40,6 +40,7 @@ void loop() {
     }
   } else {
     readSensors();
+    updateRelay();
   }
 
   if (shouldRestart) {
@@ -66,13 +67,14 @@ void loop() {
 }
 
 void initServers() {
+  initHttpServer();
+#ifdef SOCKET
+  initWebSocketServer();
+#endif
+
   if (isOtaMode) {
     setupOTA();
   } else {
-    initHttpServer();
-#ifdef SOCKET
-    initWebSocketServer();
-#endif
     if (isWifiConnected() && !disabled) {
       initMQTT();
     }
@@ -81,19 +83,19 @@ void initServers() {
 
 void handleServers() {
 
+  handleHTTP(server);
+
+#ifdef SOCKET
+  handleWebSocket();
+#endif
+
   if (isOtaMode) {
     handleOTA();
 
   } else {
 
-    handleHTTP(server);
-
     if (isWifiConnected() && !disabled) {
       handleMQTT();
     }
   }
-
-#ifdef SOCKET
-  handleWebSocket();
-#endif
 }

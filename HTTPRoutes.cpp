@@ -6,7 +6,7 @@
 #include "Variables.h"
 #include "DeviceControl.h"
 
-const char otaUrl[] PROGMEM = "";
+String otaUrl;
 
 void initHttpServer() {
   server.on("/", HTTP_GET, handleRoot);
@@ -309,8 +309,8 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String& conte
 }
 
 void performOTAUpdate() {
-  Serial.println("Checking for updates...");
-
+  Serial.print("Checking for updates: ");
+  Serial.println(otaUrl);
   WiFiClient client;  // Create a WiFiClient object
   HTTPClient http;
 
@@ -417,17 +417,13 @@ bool updateVariable(const String& variableName, const String& value) {
   } else if (variableName == "shouldRestart") {
     shouldRestart = true;
   } else if (variableName == "otaUrl") {
-    updateOtaUrl(value.c_str());
+    otaUrl = value;
     performOTAUpdate();
   } else {
     return false;
   }
 
   return true;
-}
-
-void updateOtaUrl(const char* newUrl) {
-  strncpy((char*)otaUrl, newUrl, sizeof(otaUrl));
 }
 
 void handleHTTP(ESP8266WebServer& server) {

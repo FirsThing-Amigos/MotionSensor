@@ -12,8 +12,9 @@
 extern const String deviceMacAddress;
 extern const String chipId;
 extern String deviceID;
-extern const char otaUrl[] PROGMEM;
+extern String otaUrl;
 extern IPAddress serverIP;
+extern const char* thingName;
 
 extern int ldrPin;
 extern int microPin;

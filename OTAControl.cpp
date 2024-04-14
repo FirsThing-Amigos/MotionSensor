@@ -5,7 +5,7 @@
 void setupOTA() {
   Serial.println(F("Initializing OTA..."));
   // Initialize OTA
-  ArduinoOTA.setHostname(deviceID.c_str());
+  ArduinoOTA.setHostname(("MotionSensor: " + String(deviceID)).c_str());
   ArduinoOTA.setPassword("admin");
 
   // Set OTA update callback functions

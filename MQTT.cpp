@@ -2,7 +2,6 @@
 #include <WiFiClientSecure.h>
 #include <TimeLib.h>
 #include <PubSubClient.h>
-// #include <ESPAsyncTCP.h>
 #include <EEPROM.h>
 #include "Variables.h"
 #include "DeviceControl.h"
@@ -12,10 +11,10 @@
 WiFiClientSecure net;
 PubSubClient client(net);
 
-
 const char* mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
 const int mqttPort = 8883;
-const char* thingName = "athea-motion2";
+const char* thingName = "ESP-Devices";
+// const char* thingName = "YogeshHouseMotionSensor_2";
 
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastMillis = 0;
@@ -127,7 +126,7 @@ void initMQTT() {
   net.setTrustAnchors(&cert);
   net.setClientRSACert(&client_crt, &key);
   client.setServer(mqttHost, mqttPort);
-  // client.setCallback(messageReceived);
+  client.setCallback(messageReceived);
 #ifdef DEBUG
   Serial.println(F("Connecting to AWS IOT"));
 #endif
@@ -148,9 +147,11 @@ void initMQTT() {
   }
 
   if (client.connected()) {
-    // const String subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
-    // client.subscribe(subTopic.c_str());
     Serial.println(F("AWS IoT Connected!"));
+    const String subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
+    client.subscribe(subTopic.c_str());
+    Serial.print(subTopic);
+    Serial.println(F(": Subscribed!"));
   }
 }
 
@@ -206,7 +207,9 @@ void messageReceived(char* topic, byte* payload, unsigned int length) {
   String valueStr = message.substring(message.indexOf(' ') + 1);
 
   if (command.equals("otaUrl")) {
-    updateOtaUrl(valueStr.c_str());
+    Serial.print("OTA URL Recieved: ");
+    Serial.println(valueStr);
+    otaUrl = valueStr.c_str();
     performOTAUpdate();
 
   } else if (command.equals("disabled")) {
@@ -246,11 +249,15 @@ bool isMqttConnected() {
 void pushDeviceState(int heartBeat) {
   // Create a JSON message
   String jsonMessage = "{";
-  jsonMessage += "\"date\":\"" + String(year()) + "-" + String(month()) + "-" + String(day()) + "\",";
+  // jsonMessage += "\"date\":\"" + String(year()) + "-" + String(month()) + "-" + String(day()) + "\",";
   jsonMessage += "\"deviceID\":\"" + deviceID + "\",";
   jsonMessage += "\"motionState\":" + String(microMotion) + ",";
   jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
   jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
+  if (heartBeat == 1) {
+    jsonMessage += "\"localIp\":\"" + serverIP.toString() + "\",";
+    jsonMessage += "\"deviceMac\":\"" + String(deviceMacAddress) + "\",";
+  }
   jsonMessage += "\"heartBeat\":" + String(heartBeat);
   jsonMessage += "}";
 
@@ -270,7 +277,7 @@ void handleMQTT() {
   } else {
     client.loop();
     // Check if enough time has passed since the last heartbeat
-    if (millis() - lastHeartbeatTime >= heartbeatInterval) {
+    if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatInterval) {
       pushDeviceState(1);
       // Update the last heartbeat time
       lastHeartbeatTime = millis();

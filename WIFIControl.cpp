@@ -15,7 +15,10 @@ unsigned long hotspotActivationTime = 0;
 const unsigned long hotspotDeactivationDelay = 5 * 60 * 1000;  // 5 minutes in milliseconds
 
 void initNetwork() {
-  initWifi();
+
+  if (!isOtaMode) {
+    initWifi();
+  }
   if (!isWifiConnected()) {
     initHotspot();
   }

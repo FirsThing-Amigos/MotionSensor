@@ -21,41 +21,41 @@ ESP8266WebServer server(80);
 
 unsigned long lastWiFiCheckTime = 0;
 const unsigned long WiFiCheckInterval = 60000;
+unsigned long lightOffWaitTime = 120;  // 120 Seconds
+int lowLightThreshold = 140;
 
 void setup() {
   Serial.begin(115200);
   Serial.println("");
-  EEPROM.begin(128);
-  disabled = (EEPROM.read(65) == 1);
-  isOtaMode = (EEPROM.read(64) == 1);
+  initConfig();
   initDevices();
   initNetwork();
   initServers();
 }
 
 void loop() {
-  if (disabled) {
-    if (digitalRead(relayPin) == LOW) {
-      digitalWrite(relayPin, HIGH);
-    }
-  } else {
-    readSensors();
-    updateRelay();
-  }
 
   if (shouldRestart) {
     restartESP();
   }
 
-  if (millis() - lastWiFiCheckTime >= WiFiCheckInterval) {
-    lastWiFiCheckTime = millis();
-    if (!isWifiConnected() && !hotspotActive) {
+  readSensors();
+
+  if (!disabled) {
+    updateRelay();
+  }
+
+  if (!isOtaMode) {
+    if (millis() - lastWiFiCheckTime >= WiFiCheckInterval) {
+      lastWiFiCheckTime = millis();
+      if (!isWifiConnected() && !hotspotActive) {
 #ifdef DEBUG
-      Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
+        Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
 #endif
-      initNetwork();
-    } else if (hotspotActive) {
-      deactivateHotspot();
+        initNetwork();
+      } else if (hotspotActive) {
+        deactivateHotspot();
+      }
     }
   }
 
@@ -64,6 +64,14 @@ void loop() {
   publishSensorStatus();
 #endif
   delay(200);
+}
+
+void initConfig() {
+  EEPROM.begin(128);
+  isOtaMode = (EEPROM.read(64) == 1);
+  disabled = (EEPROM.read(65) == 1);
+  lightOffWaitTime = (EEPROM.read(66) > 0) ? EEPROM.read(66) : lightOffWaitTime;
+  lowLightThreshold = (EEPROM.read(67) > 0) ? EEPROM.read(67) : lowLightThreshold;
 }
 
 void initServers() {
@@ -75,7 +83,7 @@ void initServers() {
   if (isOtaMode) {
     setupOTA();
   } else {
-    if (isWifiConnected() && !disabled) {
+    if (isWifiConnected()) {
       initMQTT();
     }
   }
@@ -94,7 +102,7 @@ void handleServers() {
 
   } else {
 
-    if (isWifiConnected() && !disabled) {
+    if (isWifiConnected()) {
       handleMQTT();
     }
   }

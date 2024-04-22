@@ -25,11 +25,9 @@ bool relayState = LOW;
 int condition = -1;
 int pval = -1;
 int ldrVal = -1;
-int lowLightThreshold = 230;
 int lightVariable = 20;
 
 unsigned long lastMotionTime = 0;
-unsigned long lightOffWaitTime = 120;  // 60 Seconds
 unsigned long countDownLightOff = 0;
 unsigned long countDownDayLight = 0;
 
@@ -53,10 +51,12 @@ void initDevices() {
 #ifdef PIR
   pinMode(pirPin, INPUT);
 #endif
-  if (!isOtaMode) {
+  if (!isOtaMode && !disabled) {
     setLightVariable();
     readSensors();
     updateRelay();
+  } else if (disabled) {
+    digitalWrite(relayPin, HIGH);
   }
 }
 
@@ -116,7 +116,7 @@ void setLightVariable() {
   readLDRSensor();
   lightOnVal = min(lightOnVal, ldrVal);
 
-  lightVariable = max(lightVariable, lightOffVal - lightOnVal) + 10;
+  lightVariable = max(lightVariable, ((lightOffVal - lightOnVal) + 10));
 }
 
 void updateRelay() {
@@ -174,9 +174,11 @@ String getDeviceStatus() {
 
   response += "{";
   response += "\"device_id\":\"" + String(deviceID) + "\",";
+  response += "\"device_disabled\":\"" + String(disabled) + "\",";
   response += "\"condition\":\"" + String(condition) + "\",";
   response += "\"thing_name\":\"" + String(thingName) + "\",";
   response += "\"mac_address\":\"" + String(deviceMacAddress) + "\",";
+  response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
   response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
   response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
 #ifdef PIR
@@ -192,7 +194,7 @@ String getDeviceStatus() {
   response += "\"relay_pin_state\":" + String(relayState) + ",";
   response += "\"last_motion_time\":" + String(millis() - lastMotionTime) + ",";
   response += "\"millis\":" + String(millis()) + ",";
-  response += "\"light_off_wait_time\":" + String(lightOffWaitTime) + ",";
+  response += "\"light_off_wait_time\":" + String(lightOffWaitTime * 1000) + ",";
   response += "\"count_down_light_off\":" + String(millis() - countDownLightOff) + ",";
   response += "\"count_down_light_off_val\":" + String(countDownLightOff) + ",";
   response += "\"count_down_light_off_elapsed\":" + String(lightOffWaitTime + countDownLightOff < millis()) + ",";

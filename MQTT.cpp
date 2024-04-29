@@ -24,7 +24,7 @@ const char* thingName = "ESP-Devices";
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
-unsigned long heartbeatInterval = 600000;  // 10 minute
+unsigned long heartbeatInterval = 600000;
 unsigned long lastHeartbeatTime = 0;
 
 static const char cacert[] PROGMEM = R"EOF(
@@ -50,7 +50,6 @@ rqXRfboQnoZsG4q5WTP468SQvvG5
 -----END CERTIFICATE-----
 )EOF";
 
-// Copy contents from XXXXXXXX-certificate.pem.crt here ▼
 static const char client_cert[] PROGMEM = R"KEY(
 -----BEGIN CERTIFICATE-----
 MIIDWTCCAkGgAwIBAgIURRZegj1skOoVw2fofNJjNkFmAqEwDQYJKoZIhvcNAQEL
@@ -74,7 +73,6 @@ tD4KnGMcWO1tWpNV6XNH3C1HFkMjQIuoQdxP7+e8ERorqE0qVCd2goisRq9a
 -----END CERTIFICATE-----
 )KEY";
 
-// Copy contents from  XXXXXXXX-private.pem.key here ▼
 static const char privkey[] PROGMEM = R"KEY(
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAsIIE+zFg8C6rSn9h3c5q4vocw8rIadA7FMQpWMdMoV8A0T2V
@@ -152,7 +150,6 @@ void connectToMqtt() {
   while (!pubSubClient.connect(thingName)) {
     Serial.print(".");
     if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
-      // Serial.println(F("AWS connection timed out"));
 #ifdef DEBUG
       Serial.print(F("Failed to connect to AWS IoT, rc="));
       Serial.println(pubSubClient.state());
@@ -184,19 +181,16 @@ void messageReceived(char* topic, byte* payload, unsigned int length) {
   Serial.print(topic);
   Serial.print("]: ");
 
-  // Print payload as string
   for (unsigned int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
 
-  // Convert payload to string
   String message = "";
   for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
 
-  // Extract information from the message
   String command = message.substring(0, message.indexOf(' '));
   String valueStr = message.substring(message.indexOf(' ') + 1);
 
@@ -245,7 +239,6 @@ void pushDeviceState(int heartBeat) {
   struct tm timeinfo;
   gmtime_r(&currentTime, &timeinfo);
 
-  // Create a JSON message
   String jsonMessage = "{";
   jsonMessage += "\"date\":\"" + String(asctime(&timeinfo)) + "\",";
   jsonMessage += "\"deviceID\":\"" + deviceID + "\",";
@@ -259,7 +252,6 @@ void pushDeviceState(int heartBeat) {
   jsonMessage += "\"heartBeat\":" + String(heartBeat);
   jsonMessage += "}";
 
-  // Publish the JSON message to the MQTT topic
   pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
 
 #ifdef DEBUG
@@ -269,15 +261,12 @@ void pushDeviceState(int heartBeat) {
 }
 
 void handleMQTT() {
-  // Handle the regular MQTT pubSubClient
   if (!pubSubClient.connected()) {
     reconnect();
   } else {
     pubSubClient.loop();
-    // Check if enough time has passed since the last heartbeat
     if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatInterval) {
       pushDeviceState(1);
-      // Update the last heartbeat time
       lastHeartbeatTime = millis();
     }
   }

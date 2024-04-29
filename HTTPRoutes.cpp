@@ -306,25 +306,30 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String& conte
 }
 
 void performOTAUpdate(WiFiClientSecure& wifiClientSecureOTA) {
-  Serial.print("Checking for updates: ");
-  Serial.println(otaUrl);
-  writeOtaUrlToEEPROM("#");
-  shouldRestart = true;
-  wifiClientSecureOTA.setInsecure();
-  wifiClientSecureOTA.setTimeout(10000);
-  Serial.println("OTA Update Started");
-  t_httpUpdate_return ret = ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl);
+  if (isWifiConnected()) {
 
-  switch (ret) {
-    case HTTP_UPDATE_FAILED:
-      Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
-      break;
-    case HTTP_UPDATE_NO_UPDATES:
-      Serial.println("No OTA updates available");
-      break;
-    case HTTP_UPDATE_OK:
-      Serial.println("OTA Update successful");
-      break;
+    Serial.print("Checking for updates: ");
+    Serial.println(otaUrl);
+    writeOtaUrlToEEPROM("#");
+    shouldRestart = true;
+    wifiClientSecureOTA.setInsecure();
+    wifiClientSecureOTA.setTimeout(10000);
+    Serial.println("OTA Update Started");
+    t_httpUpdate_return ret = ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl);
+
+    switch (ret) {
+      case HTTP_UPDATE_FAILED:
+        Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
+        break;
+      case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("No OTA updates available");
+        break;
+      case HTTP_UPDATE_OK:
+        Serial.println("OTA Update successful");
+        break;
+    }
+  } else {
+    Serial.println("Unable to perform OTA, Wifi not connected");
   }
 }
 

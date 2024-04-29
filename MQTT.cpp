@@ -1,5 +1,4 @@
 // MQTT File MQTT.cpp
-#include <WiFiClientSecure.h>
 #include <TimeLib.h>
 #include <PubSubClient.h>
 #include <EEPROM.h>
@@ -7,14 +6,20 @@
 #include "DeviceControl.h"
 #include "HTTPRoutes.h"
 #include "MQTT.h"
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <TimeLib.h>
 
-WiFiClientSecure net;
-PubSubClient client(net);
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "in.pool.ntp.org", 19800);
+
+WiFiClientSecure wifiClientSecure;
+PubSubClient pubSubClient(wifiClientSecure);
 
 const char* mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
 const int mqttPort = 8883;
 const char* thingName = "ESP-Devices";
-// const char* thingName = "YogeshHouseMotionSensor_2";
+// const char* thingName = "YogeshHouseMotionSensor_3";
 
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastMillis = 0;
@@ -122,67 +127,56 @@ void initMQTT() {
   Serial.println(mqttPort);
 #endif
 
-  NTPConnect();
-  net.setTrustAnchors(&cert);
-  net.setClientRSACert(&client_crt, &key);
-  client.setServer(mqttHost, mqttPort);
-  client.setCallback(messageReceived);
+  configureTime();
+  wifiClientSecure.setTrustAnchors(&cert);
+  wifiClientSecure.setClientRSACert(&client_crt, &key);
+  pubSubClient.setServer(mqttHost, mqttPort);
+  pubSubClient.setCallback(messageReceived);
 #ifdef DEBUG
-  Serial.println(F("Connecting to AWS IOT"));
+  Serial.print(F("Connecting to AWS IOT"));
 #endif
-  mqttConnectStartTime = millis();
+  connectToMqtt();
 
-  while (!client.connect(thingName)) {
-    Serial.print(".");
-    if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
-      // Serial.println(F("AWS connection timed out"));
-#ifdef DEBUG
-      Serial.print(F("Failed to connect to AWS IoT, rc="));
-      Serial.println(client.state());
-#endif
-
-      break;
-    }
-    delay(1000);
-  }
-
-  if (client.connected()) {
+  if (pubSubClient.connected()) {
     Serial.println(F("AWS IoT Connected!"));
     const String subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
-    client.subscribe(subTopic.c_str());
+    pubSubClient.subscribe(subTopic.c_str());
     Serial.print(subTopic);
     Serial.println(F(": Subscribed!"));
   }
 }
 
-void NTPConnect() {
-  Serial.println("Setting time using SNTP");
-  // setTime(12, 34, 56, 9, 9, 2023);
-  time_t nowish = 1510592825;
+void connectToMqtt() {
+  mqttConnectStartTime = millis();
 
-  if (configureTime()) {
-    time_t currentTime = now();
-    Serial.println("done!");
-    struct tm timeinfo;
-    gmtime_r(&currentTime, &timeinfo);
-    Serial.print("Current time: ");
-    Serial.print(asctime(&timeinfo));
-  } else {
-    Serial.println("Time configuration failed");
-    // Handle the error condition here, such as retrying or reporting an error
+  while (!pubSubClient.connect(thingName)) {
+    Serial.print(".");
+    if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
+      // Serial.println(F("AWS connection timed out"));
+#ifdef DEBUG
+      Serial.print(F("Failed to connect to AWS IoT, rc="));
+      Serial.println(pubSubClient.state());
+#endif
+      break;
+    }
+    delay(1000);
   }
 }
 
 bool configureTime() {
-  configTime(TIME_ZONE * 3600, 0, "time.nist.gov", "pool.ntp.org");
-
-  // Wait for time configuration for a limited time
-  unsigned long configTimeout = millis() + 5000;  // Wait for up to 15 seconds
-  while (timeStatus() != timeSet && millis() < configTimeout) {
-    delay(1000);
-  }
-
-  return timeStatus() == timeSet;
+  configTime(TIME_ZONE * 3600, 0, "in.pool.ntp.org", "time.nist.gov", "pool.ntp.org");
+  timeClient.begin();
+  delay(200);
+  timeClient.update();
+  Serial.print("Current time: ");
+  Serial.println(timeClient.getFormattedTime());
+  time_t currentTime = timeClient.getEpochTime();
+  Serial.println("done!");
+  struct tm timeinfo;
+  gmtime_r(&currentTime, &timeinfo);
+  Serial.print("Current time: ");
+  Serial.print(asctime(&timeinfo));
+  return true;
 }
 
 void messageReceived(char* topic, byte* payload, unsigned int length) {
@@ -209,8 +203,8 @@ void messageReceived(char* topic, byte* payload, unsigned int length) {
   if (command.equals("otaUrl")) {
     Serial.print("OTA URL Recieved: ");
     Serial.println(valueStr);
-    otaUrl = valueStr.c_str();
-    performOTAUpdate();
+    writeOtaUrlToEEPROM(valueStr.c_str());
+    shouldRestart = true;
 
   } else if (command.equals("disabled")) {
     bool value = valueStr.equalsIgnoreCase("true");
@@ -233,23 +227,27 @@ void messageReceived(char* topic, byte* payload, unsigned int length) {
 }
 
 void reconnect() {
-  if (!client.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
+  if (!pubSubClient.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
     lastReconnectAttempt = millis();
 #ifdef DEBUG
-    Serial.println(F("Re-initiating Mqtt Connection"));
+    Serial.print(F("Re-initiating Mqtt Connection"));
 #endif
-    initMQTT();
+    connectToMqtt();
   }
 }
 
 bool isMqttConnected() {
-  return client.connected();
+  return pubSubClient.connected();
 }
 
 void pushDeviceState(int heartBeat) {
+  time_t currentTime = timeClient.getEpochTime();
+  struct tm timeinfo;
+  gmtime_r(&currentTime, &timeinfo);
+
   // Create a JSON message
   String jsonMessage = "{";
-  // jsonMessage += "\"date\":\"" + String(year()) + "-" + String(month()) + "-" + String(day()) + "\",";
+  jsonMessage += "\"date\":\"" + String(asctime(&timeinfo)) + "\",";
   jsonMessage += "\"deviceID\":\"" + deviceID + "\",";
   jsonMessage += "\"motionState\":" + String(microMotion) + ",";
   jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
@@ -262,7 +260,7 @@ void pushDeviceState(int heartBeat) {
   jsonMessage += "}";
 
   // Publish the JSON message to the MQTT topic
-  client.publish("sensors/heartbeat", jsonMessage.c_str());
+  pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
 
 #ifdef DEBUG
   Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
@@ -271,11 +269,11 @@ void pushDeviceState(int heartBeat) {
 }
 
 void handleMQTT() {
-  // Handle the regular MQTT client
-  if (!isMqttConnected()) {
+  // Handle the regular MQTT pubSubClient
+  if (!pubSubClient.connected()) {
     reconnect();
   } else {
-    client.loop();
+    pubSubClient.loop();
     // Check if enough time has passed since the last heartbeat
     if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatInterval) {
       pushDeviceState(1);

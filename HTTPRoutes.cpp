@@ -1,12 +1,9 @@
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
-
 #include <EEPROM.h>
 #include "HTTPRoutes.h"
 #include "Variables.h"
 #include "DeviceControl.h"
-
-String otaUrl;
 
 void initHttpServer() {
   server.on("/", HTTP_GET, handleRoot);
@@ -308,28 +305,27 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String& conte
   server.send(statusCode, contentType, content);
 }
 
-void performOTAUpdate() {
+void performOTAUpdate(WiFiClientSecure& wifiClientSecureOTA) {
   Serial.print("Checking for updates: ");
   Serial.println(otaUrl);
-  WiFiClient client;  // Create a WiFiClient object
-  HTTPClient http;
+  writeOtaUrlToEEPROM("#");
+  shouldRestart = true;
+  wifiClientSecureOTA.setInsecure();
+  wifiClientSecureOTA.setTimeout(10000);
+  Serial.println("OTA Update Started");
+  t_httpUpdate_return ret = ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl);
 
-  // Begin the HTTPClient with the WiFiClient object and the OTA URL
-  if (!http.begin(client, otaUrl)) {
-    Serial.println("Failed to begin HTTP connection");
-    return;
+  switch (ret) {
+    case HTTP_UPDATE_FAILED:
+      Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
+      break;
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("No OTA updates available");
+      break;
+    case HTTP_UPDATE_OK:
+      Serial.println("OTA Update successful");
+      break;
   }
-
-  int httpCode = http.GET();  // Perform the HTTP GET request
-
-  if (httpCode == HTTP_CODE_OK) {
-    WiFiClient* stream = http.getStreamPtr();
-    ESPhttpUpdate.update(*stream, "", 80, otaUrl);  // Perform OTA update with URL parameter and port 80
-  } else {
-    Serial.println("Failed to check for updates");
-  }
-
-  http.end();  // End the HTTPClient
 }
 
 bool isVariableDefined(const String& variableName) {
@@ -389,8 +385,8 @@ bool updateVariable(const String& variableName, const String& value) {
   } else if (variableName == "shouldRestart") {
     shouldRestart = true;
   } else if (variableName == "otaUrl") {
-    otaUrl = value;
-    performOTAUpdate();
+    writeOtaUrlToEEPROM(value.c_str());
+    shouldRestart = true;
   } else {
     return false;
   }
@@ -400,4 +396,30 @@ bool updateVariable(const String& variableName, const String& value) {
 
 void handleHTTP(ESP8266WebServer& server) {
   server.handleClient();
+}
+
+void writeOtaUrlToEEPROM(const char* url) {
+  EEPROM.begin(256);
+  for (int i = 0; i < strlen(url) && i < 256; ++i) {
+    EEPROM.write(68 + i, url[i]);
+  }
+  EEPROM.write(68 + strlen(url), '\0');
+  EEPROM.commit();
+}
+
+bool isValidUrl(const String& url) {
+  if (url.length() == 0) {
+    return false;
+  }
+
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return false;
+  }
+
+  // Check if URL contains a valid hostname (You can implement your own validation logic here) For simplicity, we'll just check if there's at least one '.' character
+  if (url.indexOf('.') == -1) {
+    return false;
+  }
+
+  return true;
 }

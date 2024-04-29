@@ -5,7 +5,7 @@
 #include <Arduino.h>
 
 void initMQTT();
-void NTPConnect();
+void connectToMqtt();
 bool configureTime();
 void messageReceived(char* topic, byte* payload, unsigned int length);
 void reconnect();

@@ -75,15 +75,15 @@ void loop() {
 }
 
 void initConfig() {
-  EEPROM.begin(256);
+  EEPROM.begin(FS_SIZE);
   isOtaMode = (EEPROM.read(64) == 1);
   disabled = (EEPROM.read(65) == 1);
   lightOffWaitTime = (EEPROM.read(66) > 0) ? EEPROM.read(66) : lightOffWaitTime;
   lowLightThreshold = (EEPROM.read(67) > 0) ? EEPROM.read(67) : lowLightThreshold;
 
   String tempOtaUrl = "";
-  char otaUrlBuffer[256];
-  for (int i = 0; i < 256; ++i) {
+  char otaUrlBuffer[FS_SIZE];
+  for (int i = 0; i < FS_SIZE; ++i) {
     otaUrlBuffer[i] = EEPROM.read(68 + i);
     if (otaUrlBuffer[i] == '\0') break;
   }

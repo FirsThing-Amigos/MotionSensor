@@ -238,9 +238,11 @@ void pushDeviceState(int heartBeat) {
   time_t currentTime = timeClient.getEpochTime();
   struct tm timeinfo;
   gmtime_r(&currentTime, &timeinfo);
+  String dateTimeString(asctime(&timeinfo));
+  dateTimeString.trim();
 
   String jsonMessage = "{";
-  jsonMessage += "\"date\":\"" + String(asctime(&timeinfo)) + "\",";
+  jsonMessage += "\"date\":\"" + dateTimeString + "\",";
   jsonMessage += "\"deviceID\":\"" + deviceID + "\",";
   jsonMessage += "\"motionState\":" + String(microMotion) + ",";
   jsonMessage += "\"lightState\":" + String(ldrVal) + ",";

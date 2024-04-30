@@ -4,7 +4,10 @@
 #include <Arduino.h>  // Include Arduino core library for data types
 #include <ESP8266WiFi.h>
 
-// #define DEBUG
+#define FS_SIZE 256       // Define filesystem size (256 bytes in this example)
+#define OTA_SIZE 786432   // Define OTA size (768KB in this example)
+
+#define DEBUG
 // #define SOCKET
 // #define PIR;
 

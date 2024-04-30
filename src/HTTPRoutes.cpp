@@ -3,6 +3,7 @@
 #include <EEPROM.h>
 #include "HTTPRoutes.h"
 #include "Variables.h"
+#include "WIFIControl.h"
 #include "DeviceControl.h"
 
 void initHttpServer() {

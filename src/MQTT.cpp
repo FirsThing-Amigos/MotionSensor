@@ -1,14 +1,14 @@
 // MQTT File MQTT.cpp
-#include <TimeLib.h>
-#include <PubSubClient.h>
 #include <EEPROM.h>
+#include <PubSubClient.h>
+#include <TimeLib.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <TimeLib.h>
 #include "Variables.h"
 #include "DeviceControl.h"
 #include "HTTPRoutes.h"
 #include "MQTT.h"
-#include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <TimeLib.h>
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "in.pool.ntp.org", 19800);

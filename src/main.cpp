@@ -28,51 +28,6 @@ const unsigned long WiFiCheckInterval = 60000;
 unsigned long lightOffWaitTime = 120;
 int lowLightThreshold = 140;
 
-void setup() {
-  Serial.begin(115200);
-  Serial.println("");
-  initConfig();
-  initDevices();
-  initNetwork();
-  if (otaUrl.length() == 0) {
-    initServers();
-  } else {
-    performOTAUpdate(wifiClientSecureOTA);
-  }
-}
-
-void loop() {
-
-  if (shouldRestart) {
-    restartESP();
-  }
-
-  readSensors();
-
-  if (!disabled) {
-    updateRelay();
-  }
-
-  if (!isOtaMode) {
-    if (millis() - lastWiFiCheckTime >= WiFiCheckInterval) {
-      lastWiFiCheckTime = millis();
-      if (!isWifiConnected() && !hotspotActive) {
-#ifdef DEBUG
-        Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
-#endif
-        initNetwork();
-      } else if (hotspotActive) {
-        deactivateHotspot();
-      }
-    }
-  }
-
-  handleServers();
-#ifdef SOCKET
-  publishSensorStatus();
-#endif
-  delay(200);
-}
 
 void initConfig() {
   EEPROM.begin(FS_SIZE);
@@ -117,7 +72,6 @@ void initServers() {
     }
   }
 }
-
 void handleServers() {
 
   handleHTTP(server);
@@ -135,4 +89,50 @@ void handleServers() {
       handleMQTT();
     }
   }
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("");
+  initConfig();
+  initDevices();
+  initNetwork();
+  if (otaUrl.length() == 0) {
+    initServers();
+  } else {
+    performOTAUpdate(wifiClientSecureOTA);
+  }
+}
+
+void loop() {
+
+  if (shouldRestart) {
+    restartESP();
+  }
+
+  readSensors();
+
+  if (!disabled) {
+    updateRelay();
+  }
+
+  if (!isOtaMode) {
+    if (millis() - lastWiFiCheckTime >= WiFiCheckInterval) {
+      lastWiFiCheckTime = millis();
+      if (!isWifiConnected() && !hotspotActive) {
+#ifdef DEBUG
+        Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
+#endif
+        initNetwork();
+      } else if (hotspotActive) {
+        deactivateHotspot();
+      }
+    }
+  }
+
+  handleServers();
+#ifdef SOCKET
+  publishSensorStatus();
+#endif
+  delay(200);
 }

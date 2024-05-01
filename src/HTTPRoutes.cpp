@@ -406,10 +406,10 @@ void handleHTTP(ESP8266WebServer& server) {
 
 void writeOtaUrlToEEPROM(const char* url) {
   EEPROM.begin(256);
-  for (int i = 0; i < strlen(url) && i < 256; ++i) {
+  for (int i = 0; i < static_cast<int>(strlen(url)) && i < 256; ++i) {
     EEPROM.write(68 + i, url[i]);
   }
-  EEPROM.write(68 + strlen(url), '\0');
+EEPROM.write(68 + static_cast<int>(strlen(url)), '\0');
   EEPROM.commit();
 }
 

@@ -91,8 +91,6 @@ void handleServers() {
   }
 }
 
-FLASH_MAP_SETUP_CONFIG(FLASH_MAP_OTA_FS);
-
 void setup() {
   Serial.begin(115200);
   Serial.println("");

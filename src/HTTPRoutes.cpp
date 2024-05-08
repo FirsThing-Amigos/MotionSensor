@@ -1,28 +1,29 @@
+#include "HTTPRoutes.h"
+#include <EEPROM.h>
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
-#include <EEPROM.h>
-#include "HTTPRoutes.h"
+#include <algorithm>
+#include "DeviceControl.h"
 #include "Variables.h"
 #include "WIFIControl.h"
-#include "DeviceControl.h"
 
 void initHttpServer() {
-  server.on("/", HTTP_GET, handleRoot);
-  server.on("/status", HTTP_GET, handleSensorStatus);
-  server.on("/wifi", HTTP_GET, handleWifiSettings);
-  server.on("/saveWifi", HTTP_POST, handleSaveWifi);
-  server.on("/updateVariable", HTTP_POST, handleUpdateVariable);
-  server.onNotFound(handleNotFound);
-  server.begin();
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/status", HTTP_GET, handleSensorStatus);
+    server.on("/wifi", HTTP_GET, handleWifiSettings);
+    server.on("/saveWifi", HTTP_POST, handleSaveWifi);
+    server.on("/updateVariable", HTTP_POST, handleUpdateVariable);
+    server.onNotFound(handleNotFound);
+    server.begin();
 #ifdef DEBUG
-  Serial.println(F("HTTP Server Started!"));
+    Serial.println(F("HTTP Server Started!"));
 #endif
 }
 
 void handleRoot() {
-  // Serial.println(F("Entered handle root route:"));
-  // Define CSS for styling the icons based on their state
-  String css1 = R"(
+    // Serial.println(F("Entered handle root route:"));
+    // Define CSS for styling the icons based on their state
+    String css1 = R"(
     <style>
       .container {
       display: flex;
@@ -66,13 +67,13 @@ void handleRoot() {
       background-color: blue;
     }
     )";
-  String css2 = R"(
+    String css2 = R"(
     .pir {
       background-color: orange;
     }
   )";
 
-  String css3 = R"(
+    String css3 = R"(
     .ldr {
       background-color: yellow;
       display: flex;
@@ -82,14 +83,14 @@ void handleRoot() {
     </style>
   )";
 
-  String css = css1;
+    String css = css1;
 #ifdef PIR
-  css += css2;
+    css += css2;
 #endif
-  css += css3;
+    css += css3;
 
 #ifdef SOCKET
-  String fetch = R"(
+    String fetch = R"(
         let isFetching = false;
       // Function to fetch content from server and update the response div
         async function fetchContent() {
@@ -97,8 +98,8 @@ void handleRoot() {
             isFetching = true;
             try {
               // Create a WebSocket connection to the ESP device
-              const socket = new WebSocket('ws://)"
-                 + serverIP + R"(:81');
+              const socket = new WebSocket('ws://)" +
+                   serverIP + R"(:81');
 
               // Event listener for when the WebSocket connection is opened
               socket.onopen = function(event) {
@@ -125,7 +126,7 @@ void handleRoot() {
         }
   )";
 #else
-  String fetch = R"(
+    String fetch = R"(
         let isFetching = false;
       // Function to fetch content from server and update the response div
     async function fetchContent() {
@@ -145,8 +146,8 @@ void handleRoot() {
   )";
 #endif
 
-  // Define the HTML content with icons and pin numbers
-  String html1 = R"(
+    // Define the HTML content with icons and pin numbers
+    String html1 = R"(
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -158,8 +159,8 @@ void handleRoot() {
     <body>
       <div id="response"></div>
       <script>
-         )" + fetch
-                 + R"(
+         )" + fetch +
+                   R"(
         function updateIcons(data) {
           const lightState = data["relay_pin_state"];
           const lightStateElement = document.getElementById("light-status");
@@ -219,213 +220,203 @@ void handleRoot() {
             <div>LDR: <span></span></br><span></span></div>
           </div>
   )";
-  String html2 = R"(
+    String html2 = R"(
     <div class="sensor-icon" id="pir_sensor_pin">
             <div class="icon pir"></div>
             <div>PIR: <span></span></div>
           </div>
   )";
-  String html3 = R"(
+    String html3 = R"(
     </div>
       </div>
     </body>
     </html>
   )";
 
-  String html = html1;
+    String html = html1;
 #ifdef PIR
-  html += html2;
+    html += html2;
 #endif
-  html += html3;
+    html += html3;
 
-  server.send(200, "text/html", html);
+    server.send(200, "text/html", html);
 }
 
 void handleSensorStatus() {
-  String response = getDeviceStatus();
-  sendServerResponse(200, true, response);
+    String response = getDeviceStatus();
+    sendServerResponse(200, true, response);
 }
 
 void handleWifiSettings() {
-  Serial.println("Handeling handleWifiSettings route...");
-  String form = "<form action='/saveWifi' method='post'>";
-  form += "SSID: <input type='text' name='ssid'><br>";
-  form += "Password: <input type='password' name='password'><br>";
-  form += "<input type='submit' value='Save'>";
-  form += "</form>";
+    Serial.println("Handeling handleWifiSettings route...");
+    String form = "<form action='/saveWifi' method='post'>";
+    form += "SSID: <input type='text' name='ssid'><br>";
+    form += "Password: <input type='password' name='password'><br>";
+    form += "<input type='submit' value='Save'>";
+    form += "</form>";
 
-  server.send(200, "text/html", form);
+    server.send(200, "text/html", form);
 }
 
 void handleSaveWifi() {
-  String ssidString = server.arg("ssid");
-  String passwordString = server.arg("password");
+    String ssidString = server.arg("ssid");
+    String passwordString = server.arg("password");
 
-  char ssidCharArray[32];
-  char passwordCharArray[32];
-  ssidString.toCharArray(ssidCharArray, sizeof(ssidCharArray));
-  passwordString.toCharArray(passwordCharArray, sizeof(passwordCharArray));
+    char ssidCharArray[32];
+    char passwordCharArray[32];
+    ssidString.toCharArray(ssidCharArray, sizeof(ssidCharArray));
+    passwordString.toCharArray(passwordCharArray, sizeof(passwordCharArray));
 
-  // Save WiFi credentials to EEPROM
-  saveWifiCredentials(ssidCharArray, passwordCharArray);
-  shouldRestart = true;
-  server.send(200, "text/plain", "WiFi credentials saved. Restarting device...");
+    // Save WiFi credentials to EEPROM
+    saveWifiCredentials(ssidCharArray, passwordCharArray);
+    shouldRestart = true;
+    server.send(200, "text/plain", "WiFi credentials saved. Restarting device...");
 }
 
-void saveWifiCredentials(const char* ssid, const char* password) {
-  char ssidCharArray[32];
-  char passwordCharArray[32];
-  strncpy(ssidCharArray, ssid, sizeof(ssidCharArray));
-  strncpy(passwordCharArray, password, sizeof(passwordCharArray));
-  EEPROM.put(0, ssidCharArray);
-  EEPROM.put(32, passwordCharArray);
-  EEPROM.commit();
+void saveWifiCredentials(const char *ssid, const char *password) {
+    char ssidCharArray[32];
+    char passwordCharArray[32];
+    strncpy(ssidCharArray, ssid, sizeof(ssidCharArray));
+    strncpy(passwordCharArray, password, sizeof(passwordCharArray));
+    EEPROM.put(0, ssidCharArray);
+    EEPROM.put(32, passwordCharArray);
+    EEPROM.commit();
 }
 
 void handleUpdateVariable() {
-  String key = server.arg("key");
-  String value = server.arg("value");
+    String key = server.arg("key");
+    String value = server.arg("value");
 
-  if (isVariableDefined(key)) {
-    if (updateVariable(key, value)) {
-      sendServerResponse(200, false, "Variable updated successfully.");
+    if (isVariableDefined(key)) {
+        if (updateVariable(key, value)) {
+            sendServerResponse(200, false, "Variable updated successfully.");
+        } else {
+            sendServerResponse(400, false, "Failed to update variable.");
+        }
     } else {
-      sendServerResponse(400, false, "Failed to update variable.");
+        sendServerResponse(400, false, "Variable does not exist.");
     }
-  } else {
-    sendServerResponse(400, false, "Variable does not exist.");
-  }
 }
 
-void handleNotFound() {
-  sendServerResponse(404, false, "HTTP routes are not available on hotspot mode.");
+void handleNotFound() { sendServerResponse(404, false, "HTTP routes are not available on hotspot mode."); }
+
+void sendServerResponse(int statusCode, bool isJsonResponse, const String &content) {
+    String contentType = isJsonResponse ? "application/json" : "text/plain";
+    server.send(statusCode, contentType, content);
 }
 
-void sendServerResponse(int statusCode, bool isJsonResponse, const String& content) {
-  String contentType = isJsonResponse ? "application/json" : "text/plain";
-  server.send(statusCode, contentType, content);
+void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
+    if (isWifiConnected()) {
+
+        Serial.print("Checking for updates: ");
+        Serial.println(otaUrl);
+        writeOtaUrlToEEPROM("#");
+        shouldRestart = true;
+        wifiClientSecureOTA.setInsecure();
+        wifiClientSecureOTA.setTimeout(10000);
+        Serial.println("OTA Update Started");
+
+        switch (ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl)) {
+            case HTTP_UPDATE_FAILED:
+                Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
+                break;
+            case HTTP_UPDATE_NO_UPDATES:
+                Serial.println("No OTA updates available");
+                break;
+            case HTTP_UPDATE_OK:
+                Serial.println("OTA Update successful");
+                break;
+        }
+    } else {
+        Serial.println("Unable to perform OTA, Wifi not connected");
+    }
 }
 
-void performOTAUpdate(WiFiClientSecure& wifiClientSecureOTA) {
-  if (isWifiConnected()) {
+bool isVariableDefined(const String &variableName) {
+    static const String variableList[] = {"disabled", "shouldRestart", "otaMode",          "otaUrl",           "ldrPin",
+                                          "microPin", "relayPin",      "lightOffWaitTime", "lowLightThreshold"};
 
-    Serial.print("Checking for updates: ");
-    Serial.println(otaUrl);
-    writeOtaUrlToEEPROM("#");
-    shouldRestart = true;
-    wifiClientSecureOTA.setInsecure();
-    wifiClientSecureOTA.setTimeout(10000);
-    Serial.println("OTA Update Started");
-    t_httpUpdate_return ret = ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl);
-
-    switch (ret) {
-      case HTTP_UPDATE_FAILED:
-        Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
-        break;
-      case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("No OTA updates available");
-        break;
-      case HTTP_UPDATE_OK:
-        Serial.println("OTA Update successful");
-        break;
-    }
-  } else {
-    Serial.println("Unable to perform OTA, Wifi not connected");
-  }
+    return std::any_of(std::begin(variableList), std::end(variableList),
+                       [&variableName](const String &var) { return variableName.equals(var); });
 }
 
-bool isVariableDefined(const String& variableName) {
-  static const String variableList[] = {
-    "disabled", "shouldRestart", "otaMode", "otaUrl", "ldrPin", "microPin", "relayPin", "lightOffWaitTime", "lowLightThreshold"
-  };
+bool updateVariable(const String &variableName, const String &value) {
+    if (variableName == "disabled") {
+        disabled = value.toInt();
+        EEPROM.write(65, disabled);
+        EEPROM.commit();
+        shouldRestart = true;
 
-  for (const auto& var : variableList) {
-    if (variableName.equals(var)) {
-      return true;
-    }
-  }
+    } else if (variableName == "ldrPin") {
+        ldrPin = value.toInt();
+        pinMode(ldrPin, INPUT);
+    } else if (variableName == "microPin") {
+        microPin = value.toInt();
+        pinMode(microPin, INPUT);
+    } else if (variableName == "relayPin") {
+        relayPin = value.toInt();
+        pinMode(relayPin, OUTPUT);
+    } else if (variableName == "lightOffWaitTime") {
+        if (value.toInt() > 0) {
+            lightOffWaitTime = value.toInt();
+            EEPROM.write(66, lightOffWaitTime);
+            EEPROM.commit();
+        }
 
-  return false;
-}
+    } else if (variableName == "lowLightThreshold") {
+        if (value.toInt() > 0) {
+            lowLightThreshold = value.toInt();
+            EEPROM.write(67, lowLightThreshold);
+            EEPROM.commit();
+        }
 
-bool updateVariable(const String& variableName, const String& value) {
-  if (variableName == "disabled") {
-    disabled = value.toInt();
-    EEPROM.write(65, disabled);
-    EEPROM.commit();
-    shouldRestart = true;
-
-  } else if (variableName == "ldrPin") {
-    ldrPin = value.toInt();
-    pinMode(ldrPin, INPUT);
-  } else if (variableName == "microPin") {
-    microPin = value.toInt();
-    pinMode(microPin, INPUT);
-  } else if (variableName == "relayPin") {
-    relayPin = value.toInt();
-    pinMode(relayPin, OUTPUT);
-  } else if (variableName == "lightOffWaitTime") {
-    if (value.toInt() > 0) {
-      lightOffWaitTime = value.toInt();
-      EEPROM.write(66, lightOffWaitTime);
-      EEPROM.commit();
-    }
-
-  } else if (variableName == "lowLightThreshold") {
-    if (value.toInt() > 0) {
-      lowLightThreshold = value.toInt();
-      EEPROM.write(67, lowLightThreshold);
-      EEPROM.commit();
-    }
-
-  } else if (variableName == "otaMode") {
+    } else if (variableName == "otaMode") {
 #ifdef DEBUG
-    Serial.println(EEPROM.read(64));
+        Serial.println(EEPROM.read(64));
 #endif
-    EEPROM.write(64, true);
-    EEPROM.commit();
+        EEPROM.write(64, true);
+        EEPROM.commit();
 #ifdef DEBUG
-    Serial.println(EEPROM.read(64));
+        Serial.println(EEPROM.read(64));
 #endif
-    shouldRestart = true;
-  } else if (variableName == "shouldRestart") {
-    shouldRestart = true;
-  } else if (variableName == "otaUrl") {
-    writeOtaUrlToEEPROM(value.c_str());
-    shouldRestart = true;
-  } else {
-    return false;
-  }
+        shouldRestart = true;
+    } else if (variableName == "shouldRestart") {
+        shouldRestart = true;
+    } else if (variableName == "otaUrl") {
+        writeOtaUrlToEEPROM(value.c_str());
+        shouldRestart = true;
+    } else {
+        return false;
+    }
 
-  return true;
+    return true;
 }
 
-void handleHTTP(ESP8266WebServer& server) {
-  server.handleClient();
+void handleHTTP(ESP8266WebServer &server) { server.handleClient(); }
+
+void writeOtaUrlToEEPROM(const char *url) {
+    EEPROM.begin(256);
+    for (int i = 0; i < static_cast<int>(strlen(url)) && i < 256; ++i) {
+        EEPROM.write(68 + i, url[i]);
+    }
+    EEPROM.write(68 + static_cast<int>(strlen(url)), '\0');
+    EEPROM.commit();
 }
 
-void writeOtaUrlToEEPROM(const char* url) {
-  EEPROM.begin(256);
-  for (int i = 0; i < static_cast<int>(strlen(url)) && i < 256; ++i) {
-    EEPROM.write(68 + i, url[i]);
-  }
-EEPROM.write(68 + static_cast<int>(strlen(url)), '\0');
-  EEPROM.commit();
-}
+bool isValidUrl(const String &url) {
+    if (url.length() == 0) {
+        return false;
+    }
 
-bool isValidUrl(const String& url) {
-  if (url.length() == 0) {
-    return false;
-  }
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        return false;
+    }
 
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    return false;
-  }
+    // Check if URL contains a valid hostname (You can implement your own validation logic here) For simplicity, we'll
+    // just check if there's at least one '.' character
+    if (url.indexOf('.') == -1) {
+        return false;
+    }
 
-  // Check if URL contains a valid hostname (You can implement your own validation logic here) For simplicity, we'll just check if there's at least one '.' character
-  if (url.indexOf('.') == -1) {
-    return false;
-  }
-
-  return true;
+    return true;
 }

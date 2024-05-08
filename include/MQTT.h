@@ -7,7 +7,7 @@
 void initMQTT();
 void connectToMqtt();
 bool configureTime();
-void messageReceived(char* topic, byte* payload, unsigned int length);
+void messageReceived(const char *topic, const byte *payload, unsigned int length);
 void reconnect();
 bool isMqttConnected();
 void pushDeviceState(int heartBeat);

@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 
+void begin();
 void initNetwork();
 void initWifi();
 bool isWifiConnected();

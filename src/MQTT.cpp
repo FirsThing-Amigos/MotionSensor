@@ -1,14 +1,13 @@
 // MQTT File MQTT.cpp
+#include "MQTT.h"
 #include <EEPROM.h>
+#include <NTPClient.h>
 #include <PubSubClient.h>
 #include <TimeLib.h>
 #include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <TimeLib.h>
-#include "Variables.h"
 #include "DeviceControl.h"
 #include "HTTPRoutes.h"
-#include "MQTT.h"
+#include "Variables.h"
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "in.pool.ntp.org", 19800);
@@ -16,9 +15,9 @@ NTPClient timeClient(ntpUDP, "in.pool.ntp.org", 19800);
 WiFiClientSecure wifiClientSecure;
 PubSubClient pubSubClient(wifiClientSecure);
 
-const char* mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
-const int mqttPort = 8883;
-const char* thingName = "ESP-Devices";
+const char *mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
+constexpr int mqttPort = 8883;
+const char *thingName = "ESP-Devices";
 // const char* thingName = "YogeshHouseMotionSensor_3";
 
 unsigned long lastReconnectAttempt = 0;
@@ -27,7 +26,7 @@ unsigned long previousMillis = 0;
 unsigned long heartbeatInterval = 600000;
 unsigned long lastHeartbeatTime = 0;
 
-static const char cacert[] PROGMEM = R"EOF(
+static constexpr char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
 ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
@@ -50,7 +49,7 @@ rqXRfboQnoZsG4q5WTP468SQvvG5
 -----END CERTIFICATE-----
 )EOF";
 
-static const char client_cert[] PROGMEM = R"KEY(
+static constexpr char client_cert[] PROGMEM = R"KEY(
 -----BEGIN CERTIFICATE-----
 MIIDWTCCAkGgAwIBAgIURRZegj1skOoVw2fofNJjNkFmAqEwDQYJKoZIhvcNAQEL
 BQAwTTFLMEkGA1UECwxCQW1hem9uIFdlYiBTZXJ2aWNlcyBPPUFtYXpvbi5jb20g
@@ -73,7 +72,7 @@ tD4KnGMcWO1tWpNV6XNH3C1HFkMjQIuoQdxP7+e8ERorqE0qVCd2goisRq9a
 -----END CERTIFICATE-----
 )KEY";
 
-static const char privkey[] PROGMEM = R"KEY(
+static constexpr char privkey[] PROGMEM = R"KEY(
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAsIIE+zFg8C6rSn9h3c5q4vocw8rIadA7FMQpWMdMoV8A0T2V
 mB/xbYnUbu12hisR8l8B4o0cQMV4H41hmPkaEvATgl8UOdl53v4r6Gqnc7g+PwtG
@@ -107,169 +106,166 @@ BearSSL::X509List cert(cacert);
 BearSSL::X509List client_crt(client_cert);
 BearSSL::PrivateKey key(privkey);
 
-int8_t TIME_ZONE = +5.5;
-#define TIME_ZONE +5.5
+int8_t TIME_ZONE = 5; // Adjusted to use integer value
+#define TIME_ZONE (+5.5)  // Enclosed in parentheses
 unsigned long mqttConnectStartTime;
 unsigned long mqttConnectTimeout = 1 * 60 * 1000;
 
 void initMQTT() {
-  const String pubTopic = ("sensor/" + String(getDeviceID()) + "/state/pub");
+    const String pubTopic = ("sensor/" + String(getDeviceID()) + "/state/pub");
 #ifdef DEBUG
-  Serial.print(F("mqttServer ThingName: "));
-  Serial.println(thingName);
-  Serial.print(F("mqttServer Pub Topic: "));
-  Serial.println(pubTopic);
-  Serial.print(F("mqttServer mqttHost: "));
-  Serial.println(mqttHost);
-  Serial.print(F("mqttServer mqttPort: "));
-  Serial.println(mqttPort);
+    Serial.print(F("mqttServer ThingName: "));
+    Serial.println(thingName);
+    Serial.print(F("mqttServer Pub Topic: "));
+    Serial.println(pubTopic);
+    Serial.print(F("mqttServer mqttHost: "));
+    Serial.println(mqttHost);
+    Serial.print(F("mqttServer mqttPort: "));
+    Serial.println(mqttPort);
 #endif
 
-  configureTime();
-  wifiClientSecure.setTrustAnchors(&cert);
-  wifiClientSecure.setClientRSACert(&client_crt, &key);
-  pubSubClient.setServer(mqttHost, mqttPort);
-  pubSubClient.setCallback(messageReceived);
+    configureTime();
+    wifiClientSecure.setTrustAnchors(&cert);
+    wifiClientSecure.setClientRSACert(&client_crt, &key);
+    pubSubClient.setServer(mqttHost, mqttPort);
+    pubSubClient.setCallback(messageReceived);
 #ifdef DEBUG
-  Serial.print(F("Connecting to AWS IOT"));
+    Serial.print(F("Connecting to AWS IOT"));
 #endif
-  connectToMqtt();
+    connectToMqtt();
 
-  if (pubSubClient.connected()) {
-    Serial.println(F("AWS IoT Connected!"));
-    const String subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
-    pubSubClient.subscribe(subTopic.c_str());
-    Serial.print(subTopic);
-    Serial.println(F(": Subscribed!"));
-  }
+    if (pubSubClient.connected()) {
+        Serial.println(F("AWS IoT Connected!"));
+        const String subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
+        pubSubClient.subscribe(subTopic.c_str());
+        Serial.print(subTopic);
+        Serial.println(F(": Subscribed!"));
+    }
 }
 
 void connectToMqtt() {
-  mqttConnectStartTime = millis();
+    mqttConnectStartTime = millis();
 
-  while (!pubSubClient.connect(thingName)) {
-    Serial.print(".");
-    if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
+    while (!pubSubClient.connect(thingName)) {
+        Serial.print(".");
+        if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
 #ifdef DEBUG
-      Serial.print(F("Failed to connect to AWS IoT, rc="));
-      Serial.println(pubSubClient.state());
+            Serial.print(F("Failed to connect to AWS IoT, rc="));
+            Serial.println(pubSubClient.state());
 #endif
-      break;
+            break;
+        }
+        delay(1000);
     }
-    delay(1000);
-  }
 }
 
 bool configureTime() {
-  configTime(TIME_ZONE * 3600, 0, "in.pool.ntp.org", "time.nist.gov", "pool.ntp.org");
-  timeClient.begin();
-  delay(200);
-  timeClient.update();
-  Serial.print("Current time: ");
-  Serial.println(timeClient.getFormattedTime());
-  time_t currentTime = timeClient.getEpochTime();
-  Serial.println("done!");
-  struct tm timeinfo;
-  gmtime_r(&currentTime, &timeinfo);
-  Serial.print("Current time: ");
-  Serial.print(asctime(&timeinfo));
-  return true;
+    configTime(TIME_ZONE * 3600, 0, "in.pool.ntp.org", "time.nist.gov", "pool.ntp.org");
+    timeClient.begin();
+    delay(200);
+    timeClient.update();
+    Serial.print("Current time: ");
+    Serial.println(timeClient.getFormattedTime());
+    const time_t currentTime = timeClient.getEpochTime();
+    Serial.println("done!");
+    tm timeinfo{};
+    gmtime_r(&currentTime, &timeinfo);
+    Serial.print("Current time: ");
+    Serial.print(asctime(&timeinfo));
+    return true;
 }
 
-void messageReceived(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Received [");
-  Serial.print(topic);
-  Serial.print("]: ");
+void messageReceived(const char *topic, const byte *payload, const unsigned int length) {
+    Serial.print("Received [");
+    Serial.print(topic);
+    Serial.print("]: ");
 
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-
-  String message = "";
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-
-  String command = message.substring(0, message.indexOf(' '));
-  String valueStr = message.substring(message.indexOf(' ') + 1);
-
-  if (command.equals("otaUrl")) {
-    Serial.print("OTA URL Recieved: ");
-    Serial.println(valueStr);
-    writeOtaUrlToEEPROM(valueStr.c_str());
-    shouldRestart = true;
-
-  } else if (command.equals("disabled")) {
-    bool value = valueStr.equalsIgnoreCase("true");
-    if (value) {
-      disabled = valueStr.toInt();
-      EEPROM.write(65, disabled);
-      EEPROM.commit();
-      shouldRestart = true;
-      Serial.println("Motion Sensor disabled");
-    } else {
-      disabled = 0;
-      EEPROM.write(65, disabled);
-      EEPROM.commit();
-      shouldRestart = true;
-      Serial.println("Motion Sensor enabled");
+    for (unsigned int i = 0; i < length; i++) {
+        Serial.print(static_cast<char>(payload[i]));
     }
-  } else {
-    Serial.println("Unknown command");
-  }
+    Serial.println();
+
+    String message = "";
+    for (unsigned int i = 0; i < length; i++) {
+        message += static_cast<char>(payload[i]);
+    }
+
+    String command = message.substring(0, message.indexOf(' '));
+    String valueStr = message.substring(message.indexOf(' ') + 1);
+
+    if (command.equals("otaUrl")) {
+        Serial.print("OTA URL Received: ");
+        Serial.println(valueStr);
+        writeOtaUrlToEEPROM(valueStr.c_str());
+        shouldRestart = true;
+
+    } else if (command.equals("disabled")) {
+        if (valueStr.equalsIgnoreCase("true")) {
+            disabled = valueStr.toInt();
+            EEPROM.write(65, disabled);
+            EEPROM.commit();
+            shouldRestart = true;
+            Serial.println("Motion Sensor disabled");
+        } else {
+            disabled = false;
+            EEPROM.write(65, disabled);
+            EEPROM.commit();
+            shouldRestart = true;
+            Serial.println("Motion Sensor enabled");
+        }
+    } else {
+        Serial.println("Unknown command");
+    }
 }
 
 void reconnect() {
-  if (!pubSubClient.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
-    lastReconnectAttempt = millis();
+    if (!pubSubClient.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
+        lastReconnectAttempt = millis();
 #ifdef DEBUG
-    Serial.print(F("Re-initiating Mqtt Connection"));
+        Serial.print(F("Re-initiating Mqtt Connection"));
 #endif
-    connectToMqtt();
-  }
+        connectToMqtt();
+    }
 }
 
-bool isMqttConnected() {
-  return pubSubClient.connected();
-}
+bool isMqttConnected() { return pubSubClient.connected(); }
 
 void pushDeviceState(int heartBeat) {
-  time_t currentTime = timeClient.getEpochTime();
-  struct tm timeinfo;
-  gmtime_r(&currentTime, &timeinfo);
-  String dateTimeString(asctime(&timeinfo));
-  dateTimeString.trim();
+    const time_t currentTime = timeClient.getEpochTime();
+    tm timeinfo{};
+    gmtime_r(&currentTime, &timeinfo);
+    String dateTimeString(asctime(&timeinfo));
+    dateTimeString.trim();
 
-  String jsonMessage = "{";
-  jsonMessage += "\"date\":\"" + dateTimeString + "\",";
-  jsonMessage += "\"deviceID\":\"" + deviceID + "\",";
-  jsonMessage += "\"motionState\":" + String(microMotion) + ",";
-  jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
-  jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
-  if (heartBeat == 1) {
-    jsonMessage += "\"localIp\":\"" + serverIP.toString() + "\",";
-    jsonMessage += "\"deviceMac\":\"" + String(deviceMacAddress) + "\",";
-  }
-  jsonMessage += "\"heartBeat\":" + String(heartBeat);
-  jsonMessage += "}";
+    String jsonMessage = "{";
+    jsonMessage += R"({"date":")" + dateTimeString + "\",";
+    jsonMessage += R"({"deviceID":")" + deviceID + "\",";
+    jsonMessage += "\"motionState\":" + String(microMotion) + ",";
+    jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
+    jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
+    if (heartBeat == 1) {
+        jsonMessage += R"({"localIp":")" + serverIP.toString() + "\",";
+        jsonMessage += R"({"deviceMac":")" + String(deviceMacAddress) + "\",";
+    }
+    jsonMessage += "\"heartBeat\":" + String(heartBeat);
+    jsonMessage += "}";
 
-  pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
+    pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
 
 #ifdef DEBUG
-  Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
-  Serial.println(jsonMessage.c_str());
+    Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
+    Serial.println(jsonMessage.c_str());
 #endif
 }
 
 void handleMQTT() {
-  if (!pubSubClient.connected()) {
-    reconnect();
-  } else {
-    pubSubClient.loop();
-    if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatInterval) {
-      pushDeviceState(1);
-      lastHeartbeatTime = millis();
+    if (!pubSubClient.connected()) {
+        reconnect();
+    } else {
+        pubSubClient.loop();
+        if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatInterval) {
+            pushDeviceState(1);
+            lastHeartbeatTime = millis();
+        }
     }
-  }
 }

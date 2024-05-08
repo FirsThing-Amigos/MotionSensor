@@ -14,13 +14,13 @@ void handleWifiSettings();
 void handleSaveWifi();
 void handleUpdateVariable();
 void handleNotFound();
-void handleHTTP(ESP8266WebServer& server);
-bool isVariableDefined(const String& variableName);
-bool updateVariable(const String& variableName, const String& value);
-void performOTAUpdate(WiFiClientSecure& wifiClientSecureOTA);
-void sendServerResponse(int statusCode, bool isJsonResponse, const String& content);
-void saveWifiCredentials(const char* ssid, const char* password);
-void writeOtaUrlToEEPROM(const char* url);
-bool isValidUrl(const String& url);
+void handleHTTP(ESP8266WebServer &server);
+bool isVariableDefined(const String &variableName);
+bool updateVariable(const String &variableName, const String &value);
+void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA);
+void sendServerResponse(int statusCode, bool isJsonResponse, const String &content);
+void saveWifiCredentials(const char *ssid, const char *password);
+void writeOtaUrlToEEPROM(const char *url);
+bool isValidUrl(const String &url);
 
 #endif

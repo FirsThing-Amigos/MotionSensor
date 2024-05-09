@@ -238,14 +238,14 @@ void pushDeviceState(int heartBeat) {
     dateTimeString.trim();
 
     String jsonMessage = "{";
-    jsonMessage += R"({"date":")" + dateTimeString + "\",";
-    jsonMessage += R"({"deviceID":")" + deviceID + "\",";
+    jsonMessage += R"("date":")" + dateTimeString + "\",";
+    jsonMessage += R"("deviceID":")" + deviceID + "\",";
     jsonMessage += "\"motionState\":" + String(microMotion) + ",";
     jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
     jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
     if (heartBeat == 1) {
-        jsonMessage += R"({"localIp":")" + serverIP.toString() + "\",";
-        jsonMessage += R"({"deviceMac":")" + String(deviceMacAddress) + "\",";
+        jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
+        jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\",";
     }
     jsonMessage += "\"heartBeat\":" + String(heartBeat);
     jsonMessage += "}";

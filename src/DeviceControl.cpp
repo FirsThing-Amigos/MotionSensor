@@ -170,10 +170,10 @@ String getDeviceStatus() {
     String response;
 
     response += "{";
-    response += R"({"device_id":")" + String(deviceID) + "\",";
-    response += R"({"device_disabled":")" + String(disabled) + "\",";
-    response += R"({"condition":")" + String(condition) + "\",";
-    response += R"({"thing_name":")" + String(thingName) + "\",";
+    response += R"("device_id":")" + String(deviceID) + "\",";
+    response += R"("device_disabled":")" + String(disabled) + "\",";
+    response += R"("condition":")" + String(condition) + "\",";
+    response += R"("thing_name":")" + String(thingName) + "\",";
     response += R"("mac_address":")" + String(getDeviceMacAddress()) + "\",";
     response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
     response += "\"microwave_sensor_pin\":" + String(microPin) + ",";

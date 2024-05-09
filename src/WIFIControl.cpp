@@ -14,7 +14,11 @@ const String deviceMacAddress;
 unsigned long hotspotActivationTime = 0;
 constexpr unsigned long hotspotDeactivationDelay = 5 * 60 * 1000; // 5 minutes in milliseconds
 
-void begin() { String deviceMacAddress = WiFi.macAddress(); }
+String getDeviceMacAddress() { 
+    String deviceMacAddress = WiFi.macAddress();        
+    // Serial.println(deviceMacAddress);
+    return deviceMacAddress;
+}
 
 void initNetwork() {
 

@@ -1,4 +1,5 @@
 #include "DeviceControl.h"
+#include "WIFIControl.h"
 #include "HTTPRoutes.h"
 #include "MQTT.h"
 #include "Variables.h"
@@ -33,7 +34,7 @@ unsigned long countDownDayLight = 0;
 
 String getDeviceID() {
     if (deviceID.length() == 0) {
-        String tempDeviceMacAddress = deviceMacAddress;
+        String tempDeviceMacAddress = getDeviceMacAddress();
         tempDeviceMacAddress.replace(":", "");
         deviceID = String(chipId) + "-" + tempDeviceMacAddress;
 #ifdef DEBUG
@@ -173,7 +174,7 @@ String getDeviceStatus() {
     response += R"({"device_disabled":")" + String(disabled) + "\",";
     response += R"({"condition":")" + String(condition) + "\",";
     response += R"({"thing_name":")" + String(thingName) + "\",";
-    response += R"("mac_address":")" + String(deviceMacAddress) + "\",";
+    response += R"("mac_address":")" + String(getDeviceMacAddress()) + "\",";
     response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
     response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
     response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";

@@ -97,7 +97,6 @@ void setup() {
     Serial.println("");
     initConfig();
     initDevices();
-    begin();
     initNetwork();
     if (otaUrl.length() == 0) {
         initServers();

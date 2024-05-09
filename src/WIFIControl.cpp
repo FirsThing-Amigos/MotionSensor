@@ -22,9 +22,7 @@ String getDeviceMacAddress() {
 
 void initNetwork() {
 
-    if (!isOtaMode) {
-        initWifi();
-    }
+    initWifi();
     if (!isWifiConnected()) {
         initHotspot();
     }

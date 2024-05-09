@@ -45,5 +45,6 @@ extern unsigned long lastMotionTime;
 extern unsigned long lightOffWaitTime;
 extern unsigned long countDownLightOff;
 extern unsigned long countDownDayLight;
+extern unsigned long heartbeatInterval;
 
 #endif

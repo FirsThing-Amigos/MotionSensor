@@ -27,6 +27,7 @@ unsigned long lastWiFiCheckTime = 0;
 constexpr unsigned long WiFiCheckInterval = 60000;
 unsigned long lightOffWaitTime = 120;
 int lowLightThreshold = 140;
+unsigned long heartbeatInterval = 600000;
 
 
 void initConfig() {
@@ -35,6 +36,7 @@ void initConfig() {
     disabled = (EEPROM.read(65) == 1);
     lightOffWaitTime = (EEPROM.read(66) > 0) ? EEPROM.read(66) : lightOffWaitTime;
     lowLightThreshold = (EEPROM.read(67) > 0) ? EEPROM.read(67) : lowLightThreshold;
+    heartbeatInterval = (EEPROM.read(63) > 0) ? EEPROM.read(63) : heartbeatInterval;
 
     String tempOtaUrl = "";
     char otaUrlBuffer[FS_SIZE];

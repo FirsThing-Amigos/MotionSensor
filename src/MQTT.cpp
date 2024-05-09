@@ -23,7 +23,6 @@ const char *thingName = "ESP-Devices";
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
-unsigned long heartbeatInterval = 600000;
 unsigned long lastHeartbeatTime = 0;
 
 static constexpr char cacert[] PROGMEM = R"EOF(

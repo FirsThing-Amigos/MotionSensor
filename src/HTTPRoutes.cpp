@@ -334,7 +334,7 @@ void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
 
 bool isVariableDefined(const String &variableName) {
     static const String variableList[] = {"disabled", "shouldRestart", "otaMode",          "otaUrl",           "ldrPin",
-                                          "microPin", "relayPin",      "lightOffWaitTime", "lowLightThreshold"};
+                                          "microPin", "relayPin",      "lightOffWaitTime", "lowLightThreshold", "heartbeatInterval"};
 
     return std::any_of(std::begin(variableList), std::end(variableList),
                        [&variableName](const String &var) { return variableName.equals(var); });
@@ -385,6 +385,12 @@ bool updateVariable(const String &variableName, const String &value) {
     } else if (variableName == "otaUrl") {
         writeOtaUrlToEEPROM(value.c_str());
         shouldRestart = true;
+    } else if(variableName == "heartbeatInterval"){
+      if (value.toInt() > 0) {
+            heartbeatInterval = value.toInt();
+            EEPROM.write(63, heartbeatInterval);
+            EEPROM.commit();
+        }
     } else {
         return false;
     }

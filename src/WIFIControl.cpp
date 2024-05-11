@@ -58,15 +58,16 @@ bool isWifiConnected() { return WiFi.status() == WL_CONNECTED; }
 
 void initHotspot() {
     Serial.println(F("Initializing hotspot..."));
+    const String hotSpotName = "MS-" + String(deviceID.c_str());
     WiFi.mode(WIFI_AP);
     IPAddress ip(192, 168, 1, 1);
     IPAddress subnet(255, 255, 255, 0);
     WiFi.softAPConfig(ip, ip, subnet);
-    WiFi.softAP(("MotionSensor: " + String(deviceID)).c_str());
+    WiFi.softAP(hotSpotName);
     serverIP = WiFi.softAPIP();
     hotspotActivationTime = millis();
     hotspotActive = true;
-    Serial.println(F("Hotspot Name: ESP8266AP-MoSen"));
+    Serial.println("Hotspot Name: " + hotSpotName);
     Serial.print(F("Hotspot IP address: "));
     Serial.println(serverIP);
 }

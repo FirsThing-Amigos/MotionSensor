@@ -8,6 +8,7 @@
 #include "DeviceControl.h"
 #include "HTTPRoutes.h"
 #include "Variables.h"
+#include "UdpControl.h"
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "in.pool.ntp.org", 19800);
@@ -17,13 +18,17 @@ PubSubClient pubSubClient(wifiClientSecure);
 
 const char *mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
 constexpr int mqttPort = 8883;
-const char *thingName = "ESP-Devices";
+const char *thingName = "athea-motion10";
 // const char* thingName = "YogeshHouseMotionSensor_3";
 
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
 unsigned long lastHeartbeatTime = 0;
+unsigned long heartbeatIntervalTime = heartbeatInterval *1000;
+unsigned long lastBroadcastTime = 0;
+const unsigned long broadcastInterval = 50000;
+time_t relayStateChangesTime;
 
 static constexpr char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
@@ -201,17 +206,21 @@ void messageReceived(const char *topic, const byte *payload, const unsigned int 
     } else if (command.equals("disabled")) {
         if (valueStr.equalsIgnoreCase("true")) {
             disabled = valueStr.toInt();
-            EEPROM.write(65, disabled);
+            EEPROM.write(70, disabled);
             EEPROM.commit();
             shouldRestart = true;
             Serial.println("Motion Sensor disabled");
         } else {
             disabled = false;
-            EEPROM.write(65, disabled);
+            EEPROM.write(70, disabled);
             EEPROM.commit();
             shouldRestart = true;
             Serial.println("Motion Sensor enabled");
         }
+    } else if (command.equals("sbDeviceId")) {
+        sbDeviceId = valueStr.toInt();
+        EEPROM.write(77, sbDeviceId);
+        EEPROM.commit();
     } else {
         Serial.println("Unknown command");
     }
@@ -230,31 +239,41 @@ void reconnect() {
 bool isMqttConnected() { return pubSubClient.connected(); }
 
 void pushDeviceState(int heartBeat) {
-    const time_t currentTime = timeClient.getEpochTime();
+    relayStateChangesTime = timeClient.getEpochTime();
     tm timeinfo{};
-    gmtime_r(&currentTime, &timeinfo);
+    gmtime_r(&relayStateChangesTime, &timeinfo);
     String dateTimeString(asctime(&timeinfo));
     dateTimeString.trim();
 
-    String jsonMessage = "{";
-    jsonMessage += R"("date":")" + dateTimeString + "\",";
-    jsonMessage += R"("deviceID":")" + deviceID + "\",";
-    jsonMessage += "\"motionState\":" + String(microMotion) + ",";
-    jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
-    jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
-    if (heartBeat == 1) {
+    if (pubSubClient.connected()){
+        String jsonMessage = "{";
+        jsonMessage += R"("date":")" + dateTimeString + "\",";
+        jsonMessage += R"("deviceID":")" + deviceID + "\",";
+        jsonMessage += "\"motionState\":" + String(microMotion) + ",";
+        jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
+        jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
+        if (heartBeat == 1) {
         jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
         jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\",";
+        }else{
+            jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
+        }
+        jsonMessage += "\"heartBeat\":" + String(heartBeat);
+        jsonMessage += "}";
+
+        pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
+
+    #ifdef DEBUG
+        Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
+        Serial.println(jsonMessage.c_str());
+    #endif
+    } else {
+        if (shouldProcessNeighbourDeviceIp()) {
+            processNeighbourDeviceIp();
+        }
+        Serial.println("AWS Mqtt Client Not Connected!");
+        broadcastChangedRelayState();       
     }
-    jsonMessage += "\"heartBeat\":" + String(heartBeat);
-    jsonMessage += "}";
-
-    pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
-
-#ifdef DEBUG
-    Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
-    Serial.println(jsonMessage.c_str());
-#endif
 }
 
 void handleMQTT() {
@@ -262,7 +281,7 @@ void handleMQTT() {
         reconnect();
     } else {
         pubSubClient.loop();
-        if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatInterval) {
+        if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatIntervalTime) {
             pushDeviceState(1);
             lastHeartbeatTime = millis();
         }

@@ -2,10 +2,12 @@
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
 #include "Variables.h"
+#include "HTTPRoutes.h"
 
 String ssid;
 String password;
 IPAddress serverIP;
+uint8_t configMode;
 
 bool hotspotActive = false;
 int maxAttempts = 50;
@@ -20,12 +22,10 @@ String getDeviceMacAddress() {
     return deviceMacAddress;
 }
 
+
 void initNetwork() {
 
     initWifi();
-    if (!isWifiConnected()) {
-        initHotspot();
-    }
 }
 
 void initWifi() {
@@ -70,6 +70,12 @@ void initHotspot() {
     Serial.println("Hotspot Name: " + hotSpotName);
     Serial.print(F("Hotspot IP address: "));
     Serial.println(serverIP);
+    disabled = 1;
+    Serial.println("Device Disabled");
+    configMode = 0;
+    EEPROM.write(79, configMode);
+    EEPROM.commit();
+
 }
 
 void deactivateHotspot() {

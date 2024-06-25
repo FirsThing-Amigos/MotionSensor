@@ -42,7 +42,7 @@ void handleOTA() {
     ArduinoOTA.handle();
 
     if (ArduinoOTA.getCommand() == U_FLASH) {
-        EEPROM.write(64, false); // Write otaMode to EEPROM
+        EEPROM.write(69, false); // Write otaMode to EEPROM
         EEPROM.commit();
     }
 }

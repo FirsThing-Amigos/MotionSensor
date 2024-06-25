@@ -8,6 +8,8 @@
 const String chipId = String(ESP.getChipId());
 String deviceID;
 
+
+
 int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
 int microPin = 4;
 int relayPin = 13;
@@ -53,7 +55,9 @@ void initDevices() {
     pinMode(pirPin, INPUT);
 #endif
     if (!isOtaMode && !disabled) {
+        
         setLightVariable();
+        
         readSensors();
         updateRelay();
     } else if (disabled) {
@@ -160,10 +164,10 @@ void updateRelay() {
     } else {
         condition = 9;
     }
-
-    if (relayState != digitalRead(relayPin)) {
+    if (wifiDisabled == 0 && relayState != digitalRead(relayPin)){
         pushDeviceState(0);
     }
+    
 }
 
 String getDeviceStatus() {
@@ -172,10 +176,12 @@ String getDeviceStatus() {
     response += "{";
     response += R"("device_id":")" + String(deviceID) + "\",";
     response += R"("device_disabled":")" + String(disabled) + "\",";
+    response += R"("sb_device_id":")" + String(sbDeviceId) + "\",";
     response += R"("condition":")" + String(condition) + "\",";
     response += R"("thing_name":")" + String(thingName) + "\",";
     response += R"("mac_address":")" + String(getDeviceMacAddress()) + "\",";
     response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
+    response += "\"Ota_Status\":" + String("true") + ",";
     response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
     response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
 #ifdef PIR

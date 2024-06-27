@@ -26,7 +26,7 @@ ESP8266WebServer server(80);
 
 unsigned long lastWiFiCheckTime = 0;
 constexpr unsigned long WiFiCheckInterval = 60000;
-unsigned long lightOffWaitTime = 5;
+unsigned long lightOffWaitTime = 120;
 int lowLightThreshold = 100;
 int heartbeatInterval = 60;
 uint8_t wifiDisabled;
@@ -143,8 +143,6 @@ void setup() {
     } else {
         performOTAUpdate(wifiClientSecureOTA);
     }
-
-    Serial.println("setup end");
 }
 
 void loop() {
@@ -178,11 +176,8 @@ void loop() {
     }
 
     handleServers();
-
 #ifdef SOCKET
     publishSensorStatus();
 #endif
-
     delay(200);
 }
-

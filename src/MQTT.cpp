@@ -26,8 +26,6 @@ unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
 unsigned long lastHeartbeatTime = 0;
 unsigned long heartbeatIntervalTime = heartbeatInterval *1000;
-unsigned long lastBroadcastTime = 0;
-const unsigned long broadcastInterval = 50000;
 time_t relayStateChangesTime;
 
 static constexpr char cacert[] PROGMEM = R"EOF(

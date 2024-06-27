@@ -3,7 +3,6 @@
 
 #include <WiFiUdp.h>
 void openUdp();
-void closeUdp();
 void ipBroadcastByUdp();
 void processNeighbourDeviceIp();
 void sendUdpBroadcast(const char* jsonMessage);

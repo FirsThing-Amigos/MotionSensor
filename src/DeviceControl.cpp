@@ -8,8 +8,6 @@
 const String chipId = String(ESP.getChipId());
 String deviceID;
 
-
-
 int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
 int microPin = 4;
 int relayPin = 13;
@@ -55,9 +53,7 @@ void initDevices() {
     pinMode(pirPin, INPUT);
 #endif
     if (!isOtaMode && !disabled) {
-        
         setLightVariable();
-        
         readSensors();
         updateRelay();
     } else if (disabled) {
@@ -181,7 +177,6 @@ String getDeviceStatus() {
     response += R"("thing_name":")" + String(thingName) + "\",";
     response += R"("mac_address":")" + String(getDeviceMacAddress()) + "\",";
     response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
-    response += "\"Ota_Status\":" + String("true") + ",";
     response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
     response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
 #ifdef PIR

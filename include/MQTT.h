@@ -6,11 +6,8 @@
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
 
-extern unsigned long lastBroadcastTime;
-extern const unsigned long broadcastInterval;
 extern time_t relayStateChangesTime;
 extern PubSubClient pubSubClient;
-extern WiFiClientSecure wifiClientSecure;
 
 
 void initMQTT();

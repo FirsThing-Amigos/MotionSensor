@@ -8,8 +8,6 @@
 #include "WIFIControl.h"
 
 int sbDeviceId;
-
-
 void initHttpServer() {
     server.on("/", HTTP_GET, handleRoot);
     server.on("/status", HTTP_GET, handleSensorStatus);
@@ -277,7 +275,6 @@ void handleSaveWifi() {
 
     // Save WiFi credentials to EEPROM
     saveWifiCredentials(ssidCharArray, passwordCharArray);
-
     shouldRestart = true;
     server.send(200, "text/plain", "WiFi credentials saved. Restarting device...");
 }
@@ -417,7 +414,6 @@ bool updateVariable(const String &variableName, const String &value) {
     return true;
 }
 
-
 void handleHTTP(ESP8266WebServer &server) { server.handleClient(); }
 
 void writeOtaUrlToEEPROM(const char *url) {
@@ -446,5 +442,3 @@ bool isValidUrl(const String &url) {
 
     return true;
 }
-
-

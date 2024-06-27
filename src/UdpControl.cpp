@@ -26,14 +26,6 @@ void openUdp() {
     }
 }
 
-void closeUdp() {
-    if (udpActive) {
-        udp.stop();
-        Serial.println("UDP closed on port " + String(defaultLocalPort));
-        udpActive = false;
-    }
-}
-
 void ipBroadcastByUdp() {
     udp.beginPacket("255.255.255.255", defaultLocalPort);
     // StaticJsonDocument<200> doc;
@@ -117,22 +109,6 @@ void processIncomingUdp() {
         int relayState = parseJsonValue(incomingPacket, "relayState").toInt();
         String localIp = parseJsonValue(incomingPacket, "localIp");
         int sbDeviceId = parseJsonValue(incomingPacket, "sbDeviceId").toInt();
-
-        // Process and print the received values
-        Serial.print("Date: ");
-        Serial.println(date);
-        Serial.print("Device ID: ");
-        Serial.println(deviceID);
-        Serial.print("Motion State: ");
-        Serial.println(motionState);
-        Serial.print("Light State: ");
-        Serial.println(lightState);
-        Serial.print("Relay State: ");
-        Serial.println(relayState);
-        Serial.print("Local IP: ");
-        Serial.println(localIp);
-        Serial.print("Switch Board Device ID: ");
-        Serial.println(sbDeviceId);
 
         // Example: Publish to MQTT if necessary
         String mqttMessage = "{";

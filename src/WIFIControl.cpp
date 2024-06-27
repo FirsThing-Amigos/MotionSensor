@@ -2,7 +2,6 @@
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
 #include "Variables.h"
-#include "HTTPRoutes.h"
 
 String ssid;
 String password;
@@ -73,7 +72,6 @@ void initHotspot() {
     Serial.print(F("Hotspot IP address: "));
     Serial.println(serverIP);
     disabled = 1;
-    Serial.println("Device Disabled");
     configMode = 0;
     EEPROM.write(79, configMode);
     EEPROM.commit();

@@ -44,6 +44,7 @@ extern bool shouldRestart;
 extern bool isOtaMode;
 extern bool hotspotActive;
 extern uint8_t wifiDisabled;
+extern unsigned long restartTimerCounter;
 
 extern unsigned long lastMotionTime;
 extern unsigned long lightOffWaitTime;

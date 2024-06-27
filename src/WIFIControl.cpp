@@ -15,6 +15,8 @@ const String deviceMacAddress;
 
 unsigned long hotspotActivationTime = 0;
 constexpr unsigned long hotspotDeactivationDelay = 5 * 60 * 1000; // 5 minutes in milliseconds
+unsigned long previousMillis123 = 0;
+const unsigned long resetCounterTime = 60000;
 
 String getDeviceMacAddress() { 
     String deviceMacAddress = WiFi.macAddress();        
@@ -93,4 +95,13 @@ String readStringFromEEPROM(const int start, const int end) {
         value += static_cast<char>(EEPROM.read(i));
     }
     return value;
+}
+
+
+bool shouldResetCounterTime() {
+    if (restartTimerCounter - previousMillis123 >= resetCounterTime) {
+        previousMillis123 =restartTimerCounter; 
+        return true;
+    }
+    return false;
 }

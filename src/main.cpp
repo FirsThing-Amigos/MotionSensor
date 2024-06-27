@@ -30,6 +30,7 @@ unsigned long lightOffWaitTime = 5;
 int lowLightThreshold = 100;
 int heartbeatInterval = 60;
 uint8_t wifiDisabled;
+unsigned long restartTimerCounter;
 
 
 void initConfig() {
@@ -121,6 +122,7 @@ void handleConfigMode() {
         Serial.printf("hotspot mode end");
     }
     else{
+        restartTimerCounter = millis();
         if (wifiDisabled == 0){
             initNetwork();
             Serial.println(" WifiDisable Mode = 0");
@@ -154,6 +156,11 @@ void loop() {
 
     if (!disabled) {
         updateRelay();
+    }
+    if (!hotspotActive && shouldResetCounterTime()){
+        configMode = 0;
+        EEPROM.write(79, configMode);
+        EEPROM.commit();
     }
 
     if (!isOtaMode) {

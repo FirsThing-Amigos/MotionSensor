@@ -1,10 +1,13 @@
 #ifndef VARIABLES_H
 #define VARIABLES_H
 
-#include <Arduino.h>  // Include Arduino core library for data types
+#include <Arduino.h>
 #include <ESP8266WiFi.h>
 
-// #define DEBUG
+#define FS_SIZE 256 // Define filesystem size (256 bytes in this example)
+#define OTA_SIZE 786432 // Define OTA size (768KB in this example)
+
+#define DEBUG
 // #define SOCKET
 // #define PIR;
 
@@ -14,7 +17,7 @@ extern const String chipId;
 extern String deviceID;
 extern String otaUrl;
 extern IPAddress serverIP;
-extern const char* thingName;
+extern const char *thingName;
 
 extern int ldrPin;
 extern int microPin;
@@ -42,5 +45,6 @@ extern unsigned long lastMotionTime;
 extern unsigned long lightOffWaitTime;
 extern unsigned long countDownLightOff;
 extern unsigned long countDownDayLight;
+extern unsigned long heartbeatInterval;
 
 #endif

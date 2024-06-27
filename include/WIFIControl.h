@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 
+String getDeviceMacAddress();
 void initNetwork();
 void initWifi();
 bool isWifiConnected();

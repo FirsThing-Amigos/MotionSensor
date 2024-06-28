@@ -122,7 +122,6 @@ void handleConfigMode() {
         Serial.printf("hotspot mode end");
     }
     else{
-        restartTimerCounter = millis();
         if (wifiDisabled == 0){
             initNetwork();
             Serial.println(" WifiDisable Mode = 0");
@@ -146,6 +145,7 @@ void setup() {
 }
 
 void loop() {
+    restartTimerCounter = millis();
     if (shouldRestart) {
         restartESP();
     }
@@ -155,7 +155,7 @@ void loop() {
     if (!disabled) {
         updateRelay();
     }
-    if (!hotspotActive && shouldResetCounterTime()){
+    if (shouldResetCounterTime()){
         configMode = 0;
         EEPROM.write(79, configMode);
         EEPROM.commit();
@@ -168,7 +168,7 @@ void loop() {
 #ifdef DEBUG
                 Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
 #endif
-                initNetwork();
+                // initNetwork();
             } else if (hotspotActive) {
                 deactivateHotspot();
             }

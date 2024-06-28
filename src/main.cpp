@@ -103,7 +103,6 @@ void handleServers() {
     } else {
 
         if (isWifiConnected()) {
-            Serial.println("Wifi is connected ");
             handleMQTT();
         }
     }

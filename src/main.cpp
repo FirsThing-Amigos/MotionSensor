@@ -103,6 +103,7 @@ void handleServers() {
     } else {
 
         if (isWifiConnected()) {
+            Serial.println("Wifi is connected ");
             handleMQTT();
         }
     }
@@ -149,6 +150,11 @@ void loop() {
 
     if (!disabled) {
         updateRelay();
+    }
+    if (shouldResetCounterTime()){
+        restartCounter = 0;
+        EEPROM.write(79, restartCounter);
+        EEPROM.commit();
     }
 
     if (!isOtaMode) {

@@ -49,7 +49,13 @@ void initWifi() {
     }
 }
 
-bool isWifiConnected() { return WiFi.status() == WL_CONNECTED; }
+bool isWifiConnected() {
+    IPAddress ip = WiFi.localIP();
+    if (ip == IPAddress(0, 0, 0, 0)) {
+        return false;
+    }
+    return true;
+}
 
 void initHotspot() {
     Serial.println(F("Initializing hotspot..."));

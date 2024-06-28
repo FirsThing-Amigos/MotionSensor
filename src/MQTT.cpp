@@ -8,6 +8,7 @@
 #include "DeviceControl.h"
 #include "HTTPRoutes.h"
 #include "Variables.h"
+#include "WIFIControl.h"
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "in.pool.ntp.org", 19800);
@@ -265,7 +266,8 @@ void pushDeviceState(int heartBeat) {
 }
 
 void handleMQTT() {
-    if (!pubSubClient.connected()) {
+
+    if (!pubSubClient.connected() && isWifiConnected()) {
         reconnect();
     } else {
         pubSubClient.loop();

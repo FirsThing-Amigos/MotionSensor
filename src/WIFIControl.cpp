@@ -38,8 +38,11 @@ void initWifi() {
     } else {
         Serial.print("Connecting to WiFi: ");
         Serial.println(ssid);
+        WiFi.mode(WIFI_STA);
         WiFi.begin(ssid.c_str(), password.c_str());
         int attempts = 0;
+        WiFi.setAutoReconnect(true);
+        WiFi.persistent(true);
         while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
             delay(500);
             Serial.print(".");

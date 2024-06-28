@@ -20,28 +20,39 @@ bool disabled = false;
 bool shouldRestart = false;
 bool isOtaMode = false;
 String otaUrl;
+uint8_t wifiDisabled;
 
 ESP8266WebServer server(80);
 
 unsigned long lastWiFiCheckTime = 0;
 constexpr unsigned long WiFiCheckInterval = 60000;
 unsigned long lightOffWaitTime = 120;
-int lowLightThreshold = 140;
-unsigned long heartbeatInterval = 600000;
+int lowLightThreshold = 100;
+int heartbeatInterval = 60;
+unsigned long restartTimerCounter;
 
 
 void initConfig() {
     EEPROM.begin(FS_SIZE);
-    isOtaMode = (EEPROM.read(64) == 1);
-    disabled = (EEPROM.read(65) == 1);
-    lightOffWaitTime = (EEPROM.read(66) > 0) ? EEPROM.read(66) : lightOffWaitTime;
-    lowLightThreshold = (EEPROM.read(67) > 0) ? EEPROM.read(67) : lowLightThreshold;
-    heartbeatInterval = (EEPROM.read(63) > 0) ? EEPROM.read(63) : heartbeatInterval;
+    restartCounter = (EEPROM.read(79) > 0 && EEPROM.read(79) < 4) ? EEPROM.read(79) : 0;
+    restartCounter++;
+    EEPROM.write(79, restartCounter);
+    EEPROM.commit();
+    Serial.println("Configmode: " + String(restartCounter));
+    isOtaMode = (EEPROM.read(69) == 1);
+    disabled = (EEPROM.read(70) == 1);
+    lightOffWaitTime = (EEPROM.read(72) > 0) ? EEPROM.read(72) : lightOffWaitTime;
+    lowLightThreshold = (EEPROM.read(74) > 0) ? EEPROM.read(74) : lowLightThreshold;
+    heartbeatInterval = (EEPROM.read(65) > 0) ? EEPROM.read(65) : heartbeatInterval;
+    sbDeviceId = (EEPROM.read(77) > 0) ? EEPROM.read(77) : sbDeviceId;
+    wifiDisabled = EEPROM.read(81); 
+
+    
 
     String tempOtaUrl = "";
     char otaUrlBuffer[FS_SIZE];
     for (int i = 0; i < FS_SIZE; ++i) {
-        otaUrlBuffer[i] = static_cast<char>(EEPROM.read(68 + i));
+        otaUrlBuffer[i] = static_cast<char>(EEPROM.read(88 + i));
         if (otaUrlBuffer[i] == '\0')
             break;
     }
@@ -62,19 +73,22 @@ void initConfig() {
 }
 
 void initServers() {
-    initHttpServer();
-#ifdef SOCKET
-    initWebSocketServer();
-#endif
+    if(hotspotActive || wifiDisabled == 0){
+        initHttpServer();
+    #ifdef SOCKET
+        initWebSocketServer();
+    #endif
 
-    if (isOtaMode) {
-        setupOTA();
-    } else {
-        if (isWifiConnected()) {
-            initMQTT();
+        if (isOtaMode) {
+            setupOTA();
+        } else {
+            if (wifiDisabled == 0 && isWifiConnected()) {
+                initMQTT();
+            }
         }
     }
 }
+
 void handleServers() {
 
     handleHTTP(server);
@@ -94,12 +108,29 @@ void handleServers() {
     }
 }
 
+void handleConfigMode() {
+    if (restartCounter == 3) {
+        initHotspot();
+        restartCounter = 0;
+        EEPROM.write(79, restartCounter);
+        EEPROM.commit();
+        Serial.printf("hotspot mode end");
+    }
+    else{
+        if (wifiDisabled == 0){
+            initWifi();
+            Serial.println(" WifiDisable Mode = 0");
+        }
+
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     Serial.println("");
     initConfig();
     initDevices();
-    initNetwork();
+    handleConfigMode();
     if (otaUrl.length() == 0) {
         initServers();
     } else {
@@ -109,6 +140,7 @@ void setup() {
 
 void loop() {
 
+    restartTimerCounter = millis();
     if (shouldRestart) {
         restartESP();
     }
@@ -120,17 +152,10 @@ void loop() {
     }
 
     if (!isOtaMode) {
-        if (millis() - lastWiFiCheckTime >= WiFiCheckInterval) {
-            lastWiFiCheckTime = millis();
-            if (!isWifiConnected() && !hotspotActive) {
-#ifdef DEBUG
-                Serial.println(F("WiFi disconnected. Attempting to reconnect..."));
-#endif
-                initNetwork();
-            } else if (hotspotActive) {
-                deactivateHotspot();
-            }
+        if (hotspotActive) {
+            deactivateHotspot();
         }
+        
     }
 
     handleServers();

@@ -10,22 +10,17 @@ IPAddress serverIP;
 bool hotspotActive = false;
 int maxAttempts = 50;
 const String deviceMacAddress;
+uint8_t restartCounter;
 
 unsigned long hotspotActivationTime = 0;
 constexpr unsigned long hotspotDeactivationDelay = 5 * 60 * 1000; // 5 minutes in milliseconds
+unsigned long previousMillis123 = 0;
+const unsigned long resetCounterTime = 60000;
 
 String getDeviceMacAddress() { 
     String deviceMacAddress = WiFi.macAddress();        
     // Serial.println(deviceMacAddress);
     return deviceMacAddress;
-}
-
-void initNetwork() {
-
-    initWifi();
-    if (!isWifiConnected()) {
-        initHotspot();
-    }
 }
 
 void initWifi() {
@@ -70,6 +65,10 @@ void initHotspot() {
     Serial.println("Hotspot Name: " + hotSpotName);
     Serial.print(F("Hotspot IP address: "));
     Serial.println(serverIP);
+    disabled = 1;
+    restartCounter = 0;
+    EEPROM.write(79, restartCounter);
+    EEPROM.commit();
 }
 
 void deactivateHotspot() {
@@ -87,4 +86,12 @@ String readStringFromEEPROM(const int start, const int end) {
         value += static_cast<char>(EEPROM.read(i));
     }
     return value;
+}
+
+bool shouldResetCounterTime() {
+    if (restartTimerCounter - previousMillis123 >= resetCounterTime) {
+        previousMillis123 =restartTimerCounter; 
+        return true;
+    }
+    return false;
 }

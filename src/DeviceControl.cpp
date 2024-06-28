@@ -161,7 +161,7 @@ void updateRelay() {
         condition = 9;
     }
 
-    if (relayState != digitalRead(relayPin)) {
+    if (wifiDisabled == 0 && relayState != digitalRead(relayPin)) {
         pushDeviceState(0);
     }
 }

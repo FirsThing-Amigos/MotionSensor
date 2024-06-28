@@ -24,6 +24,7 @@ unsigned long lastReconnectAttempt = 0;
 unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
 unsigned long lastHeartbeatTime = 0;
+unsigned long heartbeatIntervalTime = heartbeatInterval *1000;
 
 static constexpr char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
@@ -201,17 +202,21 @@ void messageReceived(const char *topic, const byte *payload, const unsigned int 
     } else if (command.equals("disabled")) {
         if (valueStr.equalsIgnoreCase("true")) {
             disabled = valueStr.toInt();
-            EEPROM.write(65, disabled);
+            EEPROM.write(70, disabled);
             EEPROM.commit();
             shouldRestart = true;
             Serial.println("Motion Sensor disabled");
         } else {
             disabled = false;
-            EEPROM.write(65, disabled);
+            EEPROM.write(70, disabled);
             EEPROM.commit();
             shouldRestart = true;
             Serial.println("Motion Sensor enabled");
         }
+    }  else if (command.equals("sbDeviceId")) {
+        sbDeviceId = valueStr.toInt();
+        EEPROM.write(77, sbDeviceId);
+        EEPROM.commit();
     } else {
         Serial.println("Unknown command");
     }
@@ -245,6 +250,8 @@ void pushDeviceState(int heartBeat) {
     if (heartBeat == 1) {
         jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
         jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\",";
+    } else{
+        jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
     }
     jsonMessage += "\"heartBeat\":" + String(heartBeat);
     jsonMessage += "}";
@@ -262,7 +269,7 @@ void handleMQTT() {
         reconnect();
     } else {
         pubSubClient.loop();
-        if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatInterval) {
+        if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatIntervalTime) {
             pushDeviceState(1);
             lastHeartbeatTime = millis();
         }

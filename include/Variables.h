@@ -18,6 +18,11 @@ extern String deviceID;
 extern String otaUrl;
 extern IPAddress serverIP;
 extern const char *thingName;
+extern int sbDeviceId;
+extern uint8_t restartCounter; 
+extern uint8_t wifiDisabled;
+extern unsigned long restartTimerCounter;
+extern unsigned long heartbeatIntervalTime;
 
 extern int ldrPin;
 extern int microPin;
@@ -45,6 +50,6 @@ extern unsigned long lastMotionTime;
 extern unsigned long lightOffWaitTime;
 extern unsigned long countDownLightOff;
 extern unsigned long countDownDayLight;
-extern unsigned long heartbeatInterval;
+extern int heartbeatInterval;
 
 #endif

@@ -7,6 +7,7 @@
 #include "Variables.h"
 #include "WIFIControl.h"
 
+int sbDeviceId;
 void initHttpServer() {
     server.on("/", HTTP_GET, handleRoot);
     server.on("/status", HTTP_GET, handleSensorStatus);
@@ -266,6 +267,11 @@ void handleSaveWifi() {
     char passwordCharArray[32];
     ssidString.toCharArray(ssidCharArray, sizeof(ssidCharArray));
     passwordString.toCharArray(passwordCharArray, sizeof(passwordCharArray));
+    configMode = 0;
+      EEPROM.write(79, configMode);
+      EEPROM.commit();
+      Serial.print("CconfigMode_reset : ");
+      Serial.println(EEPROM.read(79));
 
     // Save WiFi credentials to EEPROM
     saveWifiCredentials(ssidCharArray, passwordCharArray);
@@ -306,7 +312,7 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String &conte
 }
 
 void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
-    if (isWifiConnected()) {
+    if (wifiDisabled == 0 && isWifiConnected()) {
 
         Serial.print("Checking for updates: ");
         Serial.println(otaUrl);
@@ -334,7 +340,7 @@ void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
 
 bool isVariableDefined(const String &variableName) {
     static const String variableList[] = {"disabled", "shouldRestart", "otaMode",          "otaUrl",           "ldrPin",
-                                          "microPin", "relayPin",      "lightOffWaitTime", "lowLightThreshold", "heartbeatInterval"};
+                                          "microPin", "relayPin",      "lightOffWaitTime", "lowLightThreshold", "heartbeatInterval", "sbDeviceId","wifiDisabled"};
 
     return std::any_of(std::begin(variableList), std::end(variableList),
                        [&variableName](const String &var) { return variableName.equals(var); });
@@ -343,10 +349,9 @@ bool isVariableDefined(const String &variableName) {
 bool updateVariable(const String &variableName, const String &value) {
     if (variableName == "disabled") {
         disabled = value.toInt();
-        EEPROM.write(65, disabled);
+        EEPROM.write(70, disabled);
         EEPROM.commit();
         shouldRestart = true;
-
     } else if (variableName == "ldrPin") {
         ldrPin = value.toInt();
         pinMode(ldrPin, INPUT);
@@ -359,25 +364,36 @@ bool updateVariable(const String &variableName, const String &value) {
     } else if (variableName == "lightOffWaitTime") {
         if (value.toInt() > 0) {
             lightOffWaitTime = value.toInt();
-            EEPROM.write(66, lightOffWaitTime);
+            EEPROM.write(72, lightOffWaitTime);
             EEPROM.commit();
         }
+    }else if (variableName == "wifiDisabled") {
+      wifiDisabled = value.toInt();
+      EEPROM.write(81, wifiDisabled);
+      EEPROM.commit();
+      Serial.print("wifiDisabled value saved : ");
+      Serial.println(EEPROM.read(81));
+      shouldRestart = true;
+        
+    } else if (variableName == "sbDeviceId") {
+        sbDeviceId = value.toInt();
+        EEPROM.write(77, sbDeviceId);
+        EEPROM.commit();
 
     } else if (variableName == "lowLightThreshold") {
         if (value.toInt() > 0) {
             lowLightThreshold = value.toInt();
-            EEPROM.write(67, lowLightThreshold);
+            EEPROM.write(74, lowLightThreshold);
             EEPROM.commit();
         }
-
     } else if (variableName == "otaMode") {
 #ifdef DEBUG
-        Serial.println(EEPROM.read(64));
+        Serial.println(EEPROM.read(69));
 #endif
-        EEPROM.write(64, true);
+        EEPROM.write(69, true);
         EEPROM.commit();
 #ifdef DEBUG
-        Serial.println(EEPROM.read(64));
+        Serial.println(EEPROM.read(69));
 #endif
         shouldRestart = true;
     } else if (variableName == "shouldRestart") {
@@ -385,13 +401,13 @@ bool updateVariable(const String &variableName, const String &value) {
     } else if (variableName == "otaUrl") {
         writeOtaUrlToEEPROM(value.c_str());
         shouldRestart = true;
-    } else if(variableName == "heartbeatInterval"){
-      if (value.toInt() > 0) {
+    } else if (variableName == "heartbeatInterval") {
+        if (value.toInt() > 0) {
             heartbeatInterval = value.toInt();
-            EEPROM.write(63, heartbeatInterval);
+            EEPROM.write(65, heartbeatInterval);
             EEPROM.commit();
         }
-    } else {
+    }else {
         return false;
     }
 
@@ -403,9 +419,9 @@ void handleHTTP(ESP8266WebServer &server) { server.handleClient(); }
 void writeOtaUrlToEEPROM(const char *url) {
     EEPROM.begin(256);
     for (int i = 0; i < static_cast<int>(strlen(url)) && i < 256; ++i) {
-        EEPROM.write(68 + i, url[i]);
+        EEPROM.write(88 + i, url[i]);
     }
-    EEPROM.write(68 + static_cast<int>(strlen(url)), '\0');
+    EEPROM.write(88 + static_cast<int>(strlen(url)), '\0');
     EEPROM.commit();
 }
 

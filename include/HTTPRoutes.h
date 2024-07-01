@@ -6,7 +6,6 @@
 
 extern ESP8266WebServer server;
 extern WiFiClientSecure wifiClientSecureOTA;
-
 void initHttpServer();
 void handleRoot();
 void handleSensorStatus();
@@ -22,5 +21,7 @@ void sendServerResponse(int statusCode, bool isJsonResponse, const String &conte
 void saveWifiCredentials(const char *ssid, const char *password);
 void writeOtaUrlToEEPROM(const char *url);
 bool isValidUrl(const String &url);
+
+
 
 #endif

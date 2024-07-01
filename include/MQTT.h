@@ -3,6 +3,12 @@
 #define MQTT_h
 
 #include <Arduino.h>
+#include <PubSubClient.h>
+#include <WiFiClientSecure.h>
+
+extern time_t relayStateChangesTime;
+extern PubSubClient pubSubClient;
+
 
 void initMQTT();
 void connectToMqtt();

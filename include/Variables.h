@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 
-#define FS_SIZE 256 // Define filesystem size (256 bytes in this example)
+#define FS_SIZE 512 // Define filesystem size (256 bytes in this example)
 #define OTA_SIZE 786432 // Define OTA size (768KB in this example)
 
 #define DEBUG
@@ -16,6 +16,9 @@ extern const String deviceMacAddress;
 extern const String chipId;
 extern String deviceID;
 extern String otaUrl;
+extern int sbDeviceId;
+extern uint8_t configMode; 
+
 extern IPAddress serverIP;
 extern const char *thingName;
 
@@ -40,11 +43,14 @@ extern bool relayState;
 extern bool shouldRestart;
 extern bool isOtaMode;
 extern bool hotspotActive;
+extern uint8_t wifiDisabled;
+extern unsigned long restartTimerCounter;
 
 extern unsigned long lastMotionTime;
 extern unsigned long lightOffWaitTime;
 extern unsigned long countDownLightOff;
 extern unsigned long countDownDayLight;
-extern unsigned long heartbeatInterval;
+extern int heartbeatInterval;
+extern unsigned long heartbeatIntervalTime;
 
 #endif

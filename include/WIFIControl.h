@@ -13,5 +13,6 @@ void initHotspot();
 void deactivateHotspot();
 String readStringFromEEPROM(int start, int end);
 bool shouldResetCounterTime();
+void saveResetCounter(int value);
 
 #endif

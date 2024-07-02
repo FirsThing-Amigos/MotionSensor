@@ -72,9 +72,6 @@ void initHotspot() {
     Serial.print(F("Hotspot IP address: "));
     Serial.println(serverIP);
     disabled = 1;
-    restartCounter = 0;
-    EEPROM.write(79, restartCounter);
-    EEPROM.commit();
 }
 
 void deactivateHotspot() {
@@ -100,4 +97,8 @@ bool shouldResetCounterTime() {
         return true;
     }
     return false;
+}
+void saveResetCounter(int value){
+    EEPROM.write(79, value);
+    EEPROM.commit();
 }

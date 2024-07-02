@@ -26,19 +26,21 @@ ESP8266WebServer server(80);
 
 unsigned long lastWiFiCheckTime = 0;
 constexpr unsigned long WiFiCheckInterval = 60000;
-unsigned long lightOffWaitTime = 120;
-int lowLightThreshold = 100;
-int heartbeatInterval = 60;
+unsigned long lightOffWaitTime = 120;  // lightOffWaitTime is stored in second
+int lowLightThreshold = 140;
+int heartbeatInterval = 60; // heartbeatInterval is stored in second
 unsigned long restartTimerCounter;
 
-
-void initConfig() {
+void initRestartCounter(){
     EEPROM.begin(FS_SIZE);
     restartCounter = (EEPROM.read(79) > 0 && EEPROM.read(79) < 4) ? EEPROM.read(79) : 0;
     restartCounter++;
-    EEPROM.write(79, restartCounter);
-    EEPROM.commit();
+    saveResetCounter(restartCounter);
     Serial.println("Configmode: " + String(restartCounter));
+
+}
+
+void initConfig() {
     isOtaMode = (EEPROM.read(69) == 1);
     disabled = (EEPROM.read(70) == 1);
     lightOffWaitTime = (EEPROM.read(72) > 0) ? EEPROM.read(72) : lightOffWaitTime;
@@ -46,8 +48,6 @@ void initConfig() {
     heartbeatInterval = (EEPROM.read(65) > 0) ? EEPROM.read(65) : heartbeatInterval;
     sbDeviceId = (EEPROM.read(77) > 0) ? EEPROM.read(77) : sbDeviceId;
     wifiDisabled = EEPROM.read(81); 
-
-    
 
     String tempOtaUrl = "";
     char otaUrlBuffer[FS_SIZE];
@@ -111,9 +111,7 @@ void handleServers() {
 void handleConfigMode() {
     if (restartCounter == 3) {
         initHotspot();
-        restartCounter = 0;
-        EEPROM.write(79, restartCounter);
-        EEPROM.commit();
+        saveResetCounter(0);
         Serial.printf("hotspot mode end");
     }
     else{
@@ -128,6 +126,7 @@ void handleConfigMode() {
 void setup() {
     Serial.begin(115200);
     Serial.println("");
+    initRestartCounter();
     initConfig();
     initDevices();
     handleConfigMode();
@@ -151,9 +150,7 @@ void loop() {
         updateRelay();
     }
     if (shouldResetCounterTime()){
-        restartCounter = 0;
-        EEPROM.write(79, restartCounter);
-        EEPROM.commit();
+        saveResetCounter(0);
     }
 
     if (!isOtaMode) {

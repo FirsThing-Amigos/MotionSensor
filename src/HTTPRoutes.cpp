@@ -361,7 +361,8 @@ bool updateVariable(const String &variableName, const String &value) {
         pinMode(relayPin, OUTPUT);
     } else if (variableName == "lightOffWaitTime") {
         if (value.toInt() > 0) {
-            lightOffWaitTime = value.toInt();
+          int lightOffWaitTimeInMillis = value.toInt();
+            lightOffWaitTime = lightOffWaitTimeInMillis/1000;
             EEPROM.write(72, lightOffWaitTime);
             EEPROM.commit();
         }
@@ -403,7 +404,8 @@ bool updateVariable(const String &variableName, const String &value) {
         shouldRestart = true;
     } else if(variableName == "heartbeatInterval"){
       if (value.toInt() > 0) {
-            heartbeatInterval = value.toInt();
+          int heartbeatIntervalInMillis = value.toInt();
+            heartbeatInterval = heartbeatIntervalInMillis/1000;
             EEPROM.write(65, heartbeatInterval);
             EEPROM.commit();
         }

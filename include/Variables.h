@@ -2,10 +2,10 @@
 #define VARIABLES_H
 
 #include <Arduino.h>
-#if defined(ESP8266)
-  #include <ESP8266WiFi.h>
+#ifdef ESP8266
+    #include <ESP8266WiFi.h>
 #elif defined(ESP32)
-  #include <WiFi.h>
+    #include <WiFi.h>
 #endif
 
 #define FS_SIZE 256 // Define filesystem size (256 bytes in this example)

@@ -1,9 +1,11 @@
 #include "WIFIControl.h"
 #include <EEPROM.h>
-#if defined(ESP8266)
+#ifdef ESP8266
     #include <ESP8266WiFi.h>
 #elif defined(ESP32)
     #include <WiFi.h>
+    #include <AsyncTCP.h>
+    #include <WebServer.h>
 #endif
 #include "Variables.h"
 

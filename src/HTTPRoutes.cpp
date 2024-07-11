@@ -1,11 +1,11 @@
 #include "HTTPRoutes.h"
 #include <EEPROM.h>
-#if defined(ESP8266)
+#ifdef ESP8266
   #include <ESP8266HTTPClient.h>
   #include <ESP8266httpUpdate.h>
 #elif defined(ESP32)
-  #include <HTTPClient.h>
   #include <Update.h>
+  #include <HTTPClient.h>
 #endif
 #include <algorithm>
 #include "DeviceControl.h"
@@ -323,42 +323,51 @@ void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
         wifiClientSecureOTA.setTimeout(10000);
         Serial.println("OTA Update Started");
 
-        #if defined(ESP8266)
-          switch (ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl)) {
-              case HTTP_UPDATE_FAILED:
-                  Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
-                  break;
-              case HTTP_UPDATE_NO_UPDATES:
-                  Serial.println("No OTA updates available");
-                  break;
-              case HTTP_UPDATE_OK:
-                  Serial.println("OTA Update successful");
-                  break;
-          }
+        #ifdef ESP8266
+            switch (ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl)) {
+                case HTTP_UPDATE_FAILED:
+                    Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
+                    break;
+                case HTTP_UPDATE_NO_UPDATES:
+                    Serial.println("No OTA updates available");
+                    break;
+                case HTTP_UPDATE_OK:
+                    Serial.println("OTA Update successful");
+                    break;
+            }
         #elif defined(ESP32)
-        WiFiClientSecure wifiClientSecureOTA;
-        wifiClientSecureOTA.setInsecure();
-        wifiClientSecureOTA.setTimeout(10000);
-        Serial.println("OTA Update Started");
+            HTTPClient http;
+            http.begin(wifiClientSecureOTA, otaUrl);
+            int httpCode = http.GET();
+            if (httpCode == HTTP_CODE_OK) {
+                WiFiClient stream = http.getStream();  // Get stream for OTA update
+                if (Update.begin(UPDATE_SIZE_UNKNOWN)) {  // Start update process
+                    size_t written = Update.writeStream(stream);  // Write the update to ESP32
+                    if (written == stream.available()) {
+                        Serial.println("OTA Update successful");
+                    } else {
+                        Serial.println("OTA Update failed. Written != Available");
+                    }
+                    if (Update.end()) {
+                        Serial.println("OTA Update done!");
+                    } else {
+                        Serial.println("OTA Update failed!");
+                    }
+                } else {
+                    Serial.println("OTA Update failed to begin");
+                }
+            } else {
+                Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
+            }
+            http.end();  // Close HTTP connection
+        #endif
 
-        t_httpUpdate_return ret = httpUpdate.update(wifiClientSecureOTA, otaUrl);
-
-        switch (ret) {
-            case HTTP_UPDATE_FAILED:
-                Serial.println("OTA Update failed. Error: " + httpUpdate.getLastErrorString());
-                break;
-            case HTTP_UPDATE_NO_UPDATES:
-                Serial.println("No OTA updates available");
-                break;
-            case HTTP_UPDATE_OK:
-                Serial.println("OTA Update successful");
-                break;
-        }
-                #endif
     } else {
         Serial.println("Unable to perform OTA, Wifi not connected");
     }
 }
+
+
 
 bool isVariableDefined(const String &variableName) {
     static const String variableList[] = {"disabled", "shouldRestart", "otaMode",          "otaUrl",           "ldrPin",
@@ -445,8 +454,9 @@ bool updateVariable(const String &variableName, const String &value) {
 #ifdef ESP8266
   void handleHTTP(ESP8266WebServer &server) { server.handleClient(); }
 #elif defined(ESP32)
-  void handleHTTP(WebServer &server) { server.handleClient(); }
+  void handleHTTP(WebServer &server) { server.handleClient();}
 #endif
+
 
 void writeOtaUrlToEEPROM(const char *url) {
     EEPROM.begin(256);

@@ -1,6 +1,8 @@
 #include "WebSocketHelper.h"
 #include "DeviceControl.h"
 
+WebSocketsServer webSocketServer(81); // Initialize WebSocketsServer on port 81
+
 void initWebSocketServer() {
     webSocketServer.begin(); // Begin WebSocket server
     webSocketServer.onEvent([](uint8_t num, WStype_t type, uint8_t *payload, size_t length) {

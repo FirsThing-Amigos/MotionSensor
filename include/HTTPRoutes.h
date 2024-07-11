@@ -1,18 +1,18 @@
 #ifndef HTTPROUTES_H
 #define HTTPROUTES_H
 
-#if defined(ESP8266)
-  #include <ESP8266WebServer.h>
+#ifdef ESP8266
+    #include <ESP8266WebServer.h>
+    extern ESP8266WebServer server;
+    void handleHTTP(ESP8266WebServer &server);
 #elif defined(ESP32)
-  #include <WebServer.h>
+    #include <WebServer.h>
+    extern WebServer server;
+    void handleHTTP(WebServer &server);
 #endif
 #include <WiFiClientSecure.h>
 
-#if defined(ESP8266)
-  extern ESP8266WebServer server;
-#elif defined(ESP32)
-  extern WebServer server;
-#endif
+
 extern WiFiClientSecure wifiClientSecureOTA;
 
 void initHttpServer();
@@ -22,11 +22,6 @@ void handleWifiSettings();
 void handleSaveWifi();
 void handleUpdateVariable();
 void handleNotFound();
-#ifdef ESP8266
-  void handleHTTP(ESP8266WebServer &server);
-#elif defined(ESP32)
-  void handleHTTP(WebServer &server);
-#endif
 bool isVariableDefined(const String &variableName);
 bool updateVariable(const String &variableName, const String &value);
 void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA);

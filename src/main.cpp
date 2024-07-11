@@ -1,8 +1,8 @@
 #include <EEPROM.h>
-#if defined(ESP8266)
-  #include <ESP8266WebServer.h>
+#ifdef ESP8266
+#include <ESP8266WebServer.h>
 #elif defined(ESP32)
-  #include <WebServer.h>
+#include <WebServer.h>
 #endif
 #include <WiFiClientSecure.h>
 #include "DeviceControl.h"
@@ -13,7 +13,11 @@
 #include "WIFIControl.h"
 
 #ifdef SOCKET
-#include <WebSocketsServer.h>
+#ifdef ESP8266
+#include <ESP8266WebServer.h>
+#elif defined(ESP32)
+#include <WebServer.h>
+#endif
 #include "WebSocketHelper.h"
 WebSocketsServer webSocketServer(81);
 #endif
@@ -55,7 +59,11 @@ void initConfig() {
     lowLightThreshold = (EEPROM.read(74) > 0) ? EEPROM.read(74) : lowLightThreshold;
     heartbeatInterval = (EEPROM.read(65) > 0) ? EEPROM.read(65) : heartbeatInterval;
     sbDeviceId = (EEPROM.read(77) > 0) ? EEPROM.read(77) : sbDeviceId;
-    wifiDisabled = EEPROM.read(81); 
+    wifiDisabled = EEPROM.read(81);
+    if (wifiDisabled != 0){
+        Serial.println("Wi-Fi Disabled Mode Active!!!");
+
+    }
 
     String tempOtaUrl = "";
     char otaUrlBuffer[FS_SIZE];

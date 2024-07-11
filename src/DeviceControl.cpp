@@ -3,14 +3,27 @@
 #include "HTTPRoutes.h"
 #include "MQTT.h"
 #include "Variables.h"
-#include "core_esp8266_features.h"
+#ifdef ESP8266
+    #include "core_esp8266_features.h"
+#elif defined(ESP32)
 
-const String chipId = String(ESP.getChipId());
+#endif
+
+#ifdef ESP8266
+    const String chipId = String(ESP.getChipId());
+    int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
+    int microPin = 4;
+    int relayPin = 13;
+#elif defined(ESP32)
+    uint64_t chipId64 = ESP.getEfuseMac();
+    const String chipId = String((uint16_t)(chipId64 >> 32)); // Use the upper 32 bits for uniqueness
+    int ldrPin = 34; // 5 For Digital LDR And 17 For Analog
+    int microPin = 21;
+    int relayPin = 23;
+#endif
+
 String deviceID;
 
-int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
-int microPin = 4;
-int relayPin = 13;
 #ifdef PIR
 int pirPin = 5; // 14 or 5 Pin Number Uncomment this line if PIR is connected/available
 #endif

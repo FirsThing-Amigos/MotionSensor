@@ -103,9 +103,12 @@ Xy6GnA70LtjFlpc+X8SbZIKDANe6+oCNeEK0nf8jnSNoxUOueF2OyPY=
 -----END RSA PRIVATE KEY-----
 )KEY";
 
+#ifdef ESP8266
 BearSSL::X509List cert(cacert);
 BearSSL::X509List client_crt(client_cert);
 BearSSL::PrivateKey key(privkey);
+#elif defined(ESP32)
+#endif
 
 int8_t TIME_ZONE = 5; // Adjusted to use integer value
 #define TIME_ZONE (+5.5)  // Enclosed in parentheses
@@ -126,8 +129,14 @@ void initMQTT() {
 #endif
 
     configureTime();
-    wifiClientSecure.setTrustAnchors(&cert);
-    wifiClientSecure.setClientRSACert(&client_crt, &key);
+     #ifdef ESP8266
+        wifiClientSecure.setTrustAnchors(&cert);
+        wifiClientSecure.setClientRSACert(&client_crt, &key);
+    #elif defined(ESP32)
+        wifiClientSecure.setCACert(cacert);
+        wifiClientSecure.setCertificate(client_cert);
+        wifiClientSecure.setPrivateKey(privkey);
+    #endif
     pubSubClient.setServer(mqttHost, mqttPort);
     pubSubClient.setCallback(messageReceived);
 #ifdef DEBUG

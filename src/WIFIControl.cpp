@@ -104,6 +104,7 @@ bool shouldResetCounterTime() {
     }
     return false;
 }
+
 void saveResetCounter(int value){
     EEPROM.write(79, value);
     EEPROM.commit();

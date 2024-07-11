@@ -1,5 +1,9 @@
 #include <EEPROM.h>
-#include <ESP8266WebServer.h>
+#if defined(ESP8266)
+  #include <ESP8266WebServer.h>
+#elif defined(ESP32)
+  #include <WebServer.h>
+#endif
 #include <WiFiClientSecure.h>
 #include "DeviceControl.h"
 #include "HTTPRoutes.h"
@@ -22,7 +26,11 @@ bool isOtaMode = false;
 String otaUrl;
 uint8_t wifiDisabled;
 
-ESP8266WebServer server(80);
+#if defined(ESP8266)
+  ESP8266WebServer server(80);
+#elif defined(ESP32)
+  WebServer server(80);
+#endif
 
 unsigned long lastWiFiCheckTime = 0;
 constexpr unsigned long WiFiCheckInterval = 60000;

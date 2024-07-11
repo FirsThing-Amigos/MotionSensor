@@ -1,7 +1,12 @@
 #include "HTTPRoutes.h"
 #include <EEPROM.h>
-#include <ESP8266HTTPClient.h>
-#include <ESP8266httpUpdate.h>
+#if defined(ESP8266)
+  #include <ESP8266HTTPClient.h>
+  #include <ESP8266httpUpdate.h>
+#elif defined(ESP32)
+  #include <HTTPClient.h>
+  #include <Update.h>
+#endif
 #include <algorithm>
 #include "DeviceControl.h"
 #include "Variables.h"
@@ -318,9 +323,29 @@ void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
         wifiClientSecureOTA.setTimeout(10000);
         Serial.println("OTA Update Started");
 
-        switch (ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl)) {
+        #if defined(ESP8266)
+          switch (ESPhttpUpdate.update(wifiClientSecureOTA, otaUrl)) {
+              case HTTP_UPDATE_FAILED:
+                  Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
+                  break;
+              case HTTP_UPDATE_NO_UPDATES:
+                  Serial.println("No OTA updates available");
+                  break;
+              case HTTP_UPDATE_OK:
+                  Serial.println("OTA Update successful");
+                  break;
+          }
+        #elif defined(ESP32)
+        WiFiClientSecure wifiClientSecureOTA;
+        wifiClientSecureOTA.setInsecure();
+        wifiClientSecureOTA.setTimeout(10000);
+        Serial.println("OTA Update Started");
+
+        t_httpUpdate_return ret = httpUpdate.update(wifiClientSecureOTA, otaUrl);
+
+        switch (ret) {
             case HTTP_UPDATE_FAILED:
-                Serial.println("OTA Update failed. Error: " + ESPhttpUpdate.getLastErrorString());
+                Serial.println("OTA Update failed. Error: " + httpUpdate.getLastErrorString());
                 break;
             case HTTP_UPDATE_NO_UPDATES:
                 Serial.println("No OTA updates available");
@@ -329,6 +354,7 @@ void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
                 Serial.println("OTA Update successful");
                 break;
         }
+                #endif
     } else {
         Serial.println("Unable to perform OTA, Wifi not connected");
     }
@@ -416,7 +442,11 @@ bool updateVariable(const String &variableName, const String &value) {
     return true;
 }
 
-void handleHTTP(ESP8266WebServer &server) { server.handleClient(); }
+#ifdef ESP8266
+  void handleHTTP(ESP8266WebServer &server) { server.handleClient(); }
+#elif defined(ESP32)
+  void handleHTTP(WebServer &server) { server.handleClient(); }
+#endif
 
 void writeOtaUrlToEEPROM(const char *url) {
     EEPROM.begin(256);

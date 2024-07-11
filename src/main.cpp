@@ -2,6 +2,7 @@
 #ifdef ESP8266
 #include <ESP8266WebServer.h>
 #elif defined(ESP32)
+#include <WiFi.h>
 #include <WebServer.h>
 #endif
 #include <WiFiClientSecure.h>

@@ -340,34 +340,45 @@ void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
             http.begin(wifiClientSecureOTA, otaUrl);
             int httpCode = http.GET();
             if (httpCode == HTTP_CODE_OK) {
-                WiFiClient stream = http.getStream();  // Get stream for OTA update
-                if (Update.begin(UPDATE_SIZE_UNKNOWN)) {  // Start update process
-                    size_t written = Update.writeStream(stream);  // Write the update to ESP32
-                    if (written == stream.available()) {
-                        Serial.println("OTA Update successful");
+                int contentLength = http.getSize();
+                if (contentLength > 0) {
+                    bool canBegin = Update.begin(contentLength);
+                    if (canBegin) {
+                        Serial.println("Begin OTA. This may take a few minutes...");
+                        WiFiClient *stream = http.getStreamPtr();
+                        size_t written = Update.writeStream(*stream);
+                        if (written == contentLength) {
+                            Serial.println("Written : " + String(written) + " successfully");
+                        } else {
+                            Serial.println("Written only : " + String(written) + "/" + String(contentLength) + ". Retry?");
+                        }
+                        if (Update.end()) {
+                            Serial.println("OTA done!");
+                            if (Update.isFinished()) {
+                                Serial.println("Update successfully completed. Rebooting.");
+                                shouldRestart = true;
+                            } else {
+                                Serial.println("Update not finished? Something went wrong!");
+                            }
+                        } else {
+                            Serial.println("Error Occurred. Error #: " + String(Update.getError()));
+                        }
                     } else {
-                        Serial.println("OTA Update failed. Written != Available");
-                    }
-                    if (Update.end()) {
-                        Serial.println("OTA Update done!");
-                    } else {
-                        Serial.println("OTA Update failed!");
+                        Serial.println("Not enough space to begin OTA");
                     }
                 } else {
-                    Serial.println("OTA Update failed to begin");
+                    Serial.println("Content length not valid");
                 }
             } else {
                 Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
             }
             http.end();  // Close HTTP connection
         #endif
-
+        saveResetCounter(0);
     } else {
         Serial.println("Unable to perform OTA, Wifi not connected");
     }
 }
-
-
 
 bool isVariableDefined(const String &variableName) {
     static const String variableList[] = {"disabled", "shouldRestart", "otaMode",          "otaUrl",           "ldrPin",
@@ -423,10 +434,11 @@ bool updateVariable(const String &variableName, const String &value) {
         }
 
     } else if (variableName == "otaMode") {
+      bool otaModeValue = value.equals("1");
 #ifdef DEBUG
         Serial.println(EEPROM.read(69));
 #endif
-        EEPROM.write(69, true);
+        EEPROM.write(69, otaModeValue);
         EEPROM.commit();
 #ifdef DEBUG
         Serial.println(EEPROM.read(69));

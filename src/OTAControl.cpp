@@ -14,6 +14,8 @@ void setupOTA() {
     ArduinoOTA.onStart([]() { Serial.println(F("Start updating...")); });
     ArduinoOTA.onEnd([]() {
         Serial.println(F("\nEnd"));
+        EEPROM.write(69, false); // OTA Mode set to false
+        EEPROM.commit();
         restartESP();
     });
     ArduinoOTA.onProgress([](const unsigned int progress, const unsigned int total) {

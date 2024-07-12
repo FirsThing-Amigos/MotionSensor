@@ -7,6 +7,7 @@ String getDeviceID();
 void initDevices();
 void readSensors();
 void readLDRSensor();
+void readtemperatureHumidity();
 void readMicrowaveSensor();
 #ifdef PIR
 void readPIRSensor();

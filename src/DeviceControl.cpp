@@ -3,23 +3,30 @@
 #include "HTTPRoutes.h"
 #include "MQTT.h"
 #include "Variables.h"
+#include <DHT.h>
 #ifdef ESP8266
     #include "core_esp8266_features.h"
 #elif defined(ESP32)
 
 #endif
+#define DHTTYPE DHT11
+
+DHT dht(tempHumiPin, DHTTYPE);
 
 #ifdef ESP8266
     const String chipId = String(ESP.getChipId());
     int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
     int microPin = 4;
     int relayPin = 13;
+    int tempHumiPin = 14;
 #elif defined(ESP32)
     uint64_t chipId64 = ESP.getEfuseMac();
     const String chipId = String((uint16_t)(chipId64 >> 32)); // Use the upper 32 bits for uniqueness
     int ldrPin = 34; // 5 For Digital LDR And 17 For Analog
     int microPin = 21;
     int relayPin = 23;
+    int tempHumiPin = 4;
+
 #endif
 
 String deviceID;
@@ -30,6 +37,9 @@ int pirPin = 5; // 14 or 5 Pin Number Uncomment this line if PIR is connected/av
 
 int light = -1;
 int microMotion = -1;
+int temperature = 0;
+int humidity = 0;
+
 #ifdef PIR
 int pirMotion = -1;
 #endif
@@ -62,6 +72,7 @@ void initDevices() {
     pinMode(relayPin, OUTPUT);
     pinMode(microPin, INPUT);
     pinMode(ldrPin, INPUT);
+    pinMode(tempHumiPin, INPUT);
 #ifdef PIR
     pinMode(pirPin, INPUT);
 #endif
@@ -77,6 +88,7 @@ void initDevices() {
 void readSensors() {
     readLDRSensor();
     readMicrowaveSensor();
+    readtemperatureHumidity();
 #ifdef PIR
     readPIRSensor();
 #endif
@@ -86,6 +98,17 @@ void readLDRSensor() {
     // light = digitalRead(ldrPin);
     ldrVal = analogRead(ldrPin);
     light = ldrVal > lowLightThreshold ? LOW : HIGH;
+}
+
+void readtemperatureHumidity(){
+   float humi = dht.readHumidity();
+    float temp = dht.readTemperature();
+    if (isnan(humi) || isnan(temp)) {
+        Serial.println("Failed to read from DHT sensor!");
+        return;
+    }
+    humidity = (int)humi;
+    temperature = (int)temp;
 }
 
 void readMicrowaveSensor() { microMotion = digitalRead(microPin); }

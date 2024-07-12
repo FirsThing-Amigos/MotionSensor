@@ -31,6 +31,7 @@ extern unsigned long heartbeatIntervalTime;
 extern int ldrPin;
 extern int microPin;
 extern int relayPin;
+extern int tempHumiPin;
 #ifdef PIR
 extern int pirPin;
 extern int pirMotion;
@@ -43,6 +44,8 @@ extern int pirMotion;
 extern int ldrVal;
 extern int pval;
 extern int lowLightThreshold;
+extern int temperature;
+extern int humidity;
 
 extern bool disabled;
 extern bool relayState;

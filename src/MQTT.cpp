@@ -260,6 +260,9 @@ void pushDeviceState(int heartBeat) {
     if (heartBeat == 1) {
         jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
         jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\",";
+        jsonMessage += R"("temperature":")" + String(temperature) + "\",";
+        jsonMessage += R"("humidity":")" + String(humidity) + "\",";
+
     } else{
         jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
     }

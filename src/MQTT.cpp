@@ -127,8 +127,10 @@ void initMQTT() {
     Serial.print(F("mqttServer mqttPort: "));
     Serial.println(mqttPort);
 #endif
-
-    configureTime();
+    if(checkInternetConnectivity() ){
+        Serial.print("Internet is connected. Fetching current time form Time Server");
+        updateNtpTimeWithRetries();
+    }
      #ifdef ESP8266
         wifiClientSecure.setTrustAnchors(&cert);
         wifiClientSecure.setClientRSACert(&client_crt, &key);
@@ -172,7 +174,11 @@ void connectToMqtt() {
 bool configureTime() {
     configTime(TIME_ZONE * 3600, 0, "in.pool.ntp.org", "time.nist.gov", "pool.ntp.org");
     timeClient.begin();
-    delay(200);
+    delay(500);
+    bool timeUpdate = timeClient.update();
+    if (!timeUpdate){
+        return false;
+    }
     timeClient.update();
     Serial.print("Current time: ");
     Serial.println(timeClient.getFormattedTime());
@@ -259,7 +265,7 @@ void pushDeviceState(int heartBeat) {
     jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
     if (heartBeat == 1) {
         jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
-        jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\",";
+        jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\","; 
         jsonMessage += R"("temperature":")" + String(temperature) + "\",";
         jsonMessage += R"("humidity":")" + String(humidity) + "\",";
 
@@ -288,4 +294,21 @@ void handleMQTT() {
             lastHeartbeatTime = millis();
         }
     }
+}
+
+bool updateNtpTimeWithRetries() {
+    int retries = 1;
+    while (retries <= 5) {
+        if (configureTime()) {
+            Serial.println(retries);
+            return true;  // Exit the loop if time synchronization succeeds
+        }
+        retries++;
+        delay(1000);  // Wait for 1 second before retrying
+        if(retries==5){
+            saveResetCounter(0);
+            ESP.restart();
+        }
+    }
+    return false;
 }

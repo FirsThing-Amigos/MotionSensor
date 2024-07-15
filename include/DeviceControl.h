@@ -16,4 +16,5 @@ void setLightVariable();
 void updateRelay();
 String getDeviceStatus();
 void restartESP();
+bool checkInternetConnectivity();
 #endif

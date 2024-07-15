@@ -12,4 +12,5 @@ void reconnect();
 bool isMqttConnected();
 void pushDeviceState(int heartBeat);
 void handleMQTT();
+bool updateNtpTimeWithRetries();
 #endif

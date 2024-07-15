@@ -13,6 +13,8 @@
 
 DHT dht(tempHumiPin, DHTTYPE);
 
+const auto *internetCheckHost = "www.google.com";
+
 #ifdef ESP8266
     const String chipId = String(ESP.getChipId());
     int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
@@ -250,4 +252,18 @@ void restartESP() {
 #endif
     delay(5000);
     ESP.restart();
+}
+
+bool checkInternetConnectivity() {
+    WiFiClient client;
+
+    // Attempt to connect to a well-known server
+    if (client.connect(internetCheckHost, 80)) {
+        // If connected, return true (internet is accessible)
+        client.stop();
+        return true;
+    }
+    // If connection fails, return false (internet is not accessible)
+    client.stop();
+    return false;
 }

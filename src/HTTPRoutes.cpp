@@ -389,20 +389,20 @@ bool isVariableDefined(const String &variableName) {
                        [&variableName](const String &var) { return variableName.equals(var); });
 }
 
-bool updateVariable(const String &variableName, const String &value) {
-    if (variableName == "disabled") {
-        disabled = value.toInt();
-        EEPROM.write(70, disabled);
-        EEPROM.commit();
-        shouldRestart = true;
+  bool updateVariable(const String &variableName, const String &value) {
+      if (variableName == "disabled") {
+          disabled = value.toInt();
+          EEPROM.write(70, disabled);
+          EEPROM.commit();
+          shouldRestart = true;
 
-    } else if (variableName == "ldrPin") {
-        ldrPin = value.toInt();
-        pinMode(ldrPin, INPUT);
-    } else if (variableName == "microPin") {
-        microPin = value.toInt();
-        pinMode(microPin, INPUT);
-    } else if (variableName == "relayPin") {
+      } else if (variableName == "ldrPin") {
+          ldrPin = value.toInt();
+          pinMode(ldrPin, INPUT);
+      } else if (variableName == "microPin") {
+          microPin = value.toInt();
+          pinMode(microPin, INPUT);
+      } else if (variableName == "relayPin") {
         relayPin = value.toInt();
         pinMode(relayPin, OUTPUT);
     } else if (variableName == "lightOffWaitTime") {

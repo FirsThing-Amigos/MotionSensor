@@ -20,7 +20,7 @@ const auto *internetCheckHost = "www.google.com";
     int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
     int microPin = 4;
     int relayPin = 13;
-    int tempHumiPin = 14;
+    int tempHumiPin = 5;
 #elif defined(ESP32)
     uint64_t chipId64 = ESP.getEfuseMac();
     const String chipId = String((uint16_t)(chipId64 >> 32)); // Use the upper 32 bits for uniqueness
@@ -75,6 +75,7 @@ void initDevices() {
     pinMode(microPin, INPUT);
     pinMode(ldrPin, INPUT);
     pinMode(tempHumiPin, INPUT);
+    dht.begin();
 #ifdef PIR
     pinMode(pirPin, INPUT);
 #endif
@@ -226,6 +227,10 @@ String getDeviceStatus() {
     if (ldrPin == 17) {
         response += "\"ldr_sensor_pin_val\":" + String(ldrVal) + ",";
     }
+    response += "\"DHT_sensor_pin\":" + String(tempHumiPin) + ",";
+    response += "\"Temperature_value\":" + String(temperature) + ",";
+    response += "\"Humidity_value\":" + String(humidity) + ",";
+
     response += "\"ldr_sensor_pin_state\":" + String(light) + ",";
     response += "\"relay_pin\":" + String(relayPin) + ",";
     response += "\"relay_pin_state\":" + String(relayState) + ",";

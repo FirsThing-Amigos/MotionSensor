@@ -74,11 +74,6 @@ void handleRoot() {
       background-color: blue;
     }
     )";
-    String css2 = R"(
-    .pir {
-      background-color: orange;
-    }
-  )";
 
     String css3 = R"(
     .ldr {
@@ -91,9 +86,6 @@ void handleRoot() {
   )";
 
     String css = css1;
-#ifdef PIR
-    css += css2;
-#endif
     css += css3;
 
 #ifdef SOCKET
@@ -227,12 +219,6 @@ void handleRoot() {
             <div>LDR: <span></span></br><span></span></div>
           </div>
   )";
-    String html2 = R"(
-    <div class="sensor-icon" id="pir_sensor_pin">
-            <div class="icon pir"></div>
-            <div>PIR: <span></span></div>
-          </div>
-  )";
     String html3 = R"(
     </div>
       </div>
@@ -241,9 +227,6 @@ void handleRoot() {
   )";
 
     String html = html1;
-#ifdef PIR
-    html += html2;
-#endif
     html += html3;
 
     server.send(200, "text/html", html);
@@ -293,6 +276,10 @@ void saveWifiCredentials(const char *ssid, const char *password) {
 void handleUpdateVariable() {
     String key = server.arg("key");
     String value = server.arg("value");
+    Serial.print("key: ");
+    Serial.print(key);
+    Serial.println("value: ");
+    Serial.println(value);
 
     if (isVariableDefined(key)) {
         if (updateVariable(key, value)) {
@@ -382,7 +369,7 @@ void performOTAUpdate(WiFiClientSecure &wifiClientSecureOTA) {
 
 bool isVariableDefined(const String &variableName) {
     static const String variableList[] = {"disabled", "shouldRestart", "otaMode",          "otaUrl",           "ldrPin",
-                                          "microPin", "relayPin",      "lightOffWaitTime", "lowLightThreshold", "heartbeatInterval", "sbDeviceId","wifiDisabled"};
+                                          "microPin", "relayPin",      "lightOffWaitTime", "lowLightThreshold", "heartbeatInterval", "sbDeviceId","wifiDisabled","MeshNetwork"};
 
 
     return std::any_of(std::begin(variableList), std::end(variableList),
@@ -456,6 +443,12 @@ bool isVariableDefined(const String &variableName) {
             EEPROM.write(65, heartbeatInterval);
             EEPROM.commit();
         }
+    } else if(variableName == "MeshNetwork"){
+      bool MeshMode = value.equals("1");
+      EEPROM.write(77, MeshMode);
+      EEPROM.commit();
+      Serial.print("MeshNetwork is set to be : ");
+      Serial.println(EEPROM.read(77));
     } else {
         return false;
     }

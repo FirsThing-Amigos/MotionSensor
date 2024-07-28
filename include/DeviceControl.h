@@ -9,9 +9,7 @@ void readSensors();
 void readLDRSensor();
 void readtemperatureHumidity();
 void readMicrowaveSensor();
-#ifdef PIR
-void readPIRSensor();
-#endif
+
 void setLightVariable();
 void updateRelay();
 String getDeviceStatus();

@@ -12,6 +12,7 @@
 #include "OTAControl.h"
 #include "Variables.h"
 #include "WIFIControl.h"
+#include "UdpMeshControl.h"
 
 #ifdef SOCKET
 #ifdef ESP8266
@@ -30,6 +31,7 @@ bool shouldRestart = false;
 bool isOtaMode = false;
 String otaUrl;
 uint8_t wifiDisabled;
+bool MeshNetwork;
 
 #if defined(ESP8266)
   ESP8266WebServer server(80);
@@ -43,6 +45,8 @@ unsigned long lightOffWaitTime = 120;  // lightOffWaitTime is stored in second
 int lowLightThreshold = 140;
 int heartbeatInterval = 60; // heartbeatInterval is stored in second
 unsigned long restartTimerCounter;
+unsigned long lastUpdateMillis = 0;
+const unsigned long MeshHotspotDeactiveTime = 5 * 60 * 1000;
 
 void initRestartCounter(){
     EEPROM.begin(FS_SIZE);
@@ -61,6 +65,7 @@ void initConfig() {
     heartbeatInterval = (EEPROM.read(65) > 0) ? EEPROM.read(65) : heartbeatInterval;
     sbDeviceId = (EEPROM.read(77) > 0) ? EEPROM.read(77) : sbDeviceId;
     wifiDisabled = EEPROM.read(81);
+    MeshNetwork = (EEPROM.read(77) > 0) ? true : MeshNetwork;
     if (wifiDisabled != 0){
         Serial.println("Wi-Fi Disabled Mode Active!!!");
 
@@ -139,6 +144,17 @@ void handleConfigMode() {
 
     }
 }
+void checkMesh(WiFiClientSecure& wifiClientSecureOTA) {
+    if (!node) {
+        if (otaUrl.length() == 0) {
+          initServers();
+        } else {
+          performOTAUpdate(wifiClientSecureOTA);
+        }
+    }
+    unsigned long currentMillis = millis();
+    lastUpdateMillis = currentMillis;
+}
 
 void setup() {
     Serial.begin(115200);
@@ -147,11 +163,7 @@ void setup() {
     initConfig();
     initDevices();
     handleConfigMode();
-    if (otaUrl.length() == 0) {
-        initServers();
-    } else {
-        performOTAUpdate(wifiClientSecureOTA);
-    }
+    checkMesh(wifiClientSecureOTA);
 }
 
 void loop() {
@@ -159,6 +171,16 @@ void loop() {
     restartTimerCounter = millis();
     if (shouldRestart) {
         restartESP();
+    }
+
+    if(nodeHotspot){
+        forwardingIncomingPackets();
+    }
+
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastUpdateMillis >= MeshHotspotDeactiveTime && nodeHotspot) {
+        lastUpdateMillis = currentMillis;  // Save the last time checkConnectedStations() was executed
+        checkConnectedStations();
     }
 
     readSensors();
@@ -176,8 +198,10 @@ void loop() {
         }
         
     }
-
-    handleServers();
+    if (!MeshNetwork){
+        handleServers();
+    }
+    // handleServers();
 #ifdef SOCKET
     publishSensorStatus();
 #endif

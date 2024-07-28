@@ -7,11 +7,14 @@
     #include <AsyncTCP.h>
     #include <WebServer.h>
 #endif
+#include "UdpMeshControl.h"
 #include "Variables.h"
 
 String ssid;
 String password;
 IPAddress serverIP;
+
+bool node = false;
 
 bool hotspotActive = false;
 int maxAttempts = 50;
@@ -45,7 +48,17 @@ void initWifi() {
             Serial.print(".");
             attempts++;
         }
+        if (MeshNetwork){
+            if (WiFi.status() != WL_CONNECTED){ 
+                ConnectTOMeshWifi(); 
+                node = true;
+            }
+            configureIPAddress();
+            meshHotspot();
+        }
     }
+   
+
 
     if (isWifiConnected()) {
         serverIP = WiFi.localIP();

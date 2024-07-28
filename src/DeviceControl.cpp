@@ -4,6 +4,7 @@
 #include "MQTT.h"
 #include "Variables.h"
 #include <DHT.h>
+#include "UdpMeshControl.h"
 #ifdef ESP8266
     #include "core_esp8266_features.h"
 #elif defined(ESP32)
@@ -33,18 +34,13 @@ const auto *internetCheckHost = "www.google.com";
 
 String deviceID;
 
-#ifdef PIR
-int pirPin = 5; // 14 or 5 Pin Number Uncomment this line if PIR is connected/available
-#endif
+
 
 int light = -1;
 int microMotion = -1;
 int temperature = 0;
 int humidity = 0;
 
-#ifdef PIR
-int pirMotion = -1;
-#endif
 
 bool relayState = LOW;
 
@@ -76,9 +72,6 @@ void initDevices() {
     pinMode(ldrPin, INPUT);
     pinMode(tempHumiPin, INPUT);
     dht.begin();
-#ifdef PIR
-    pinMode(pirPin, INPUT);
-#endif
     if (!isOtaMode && !disabled) {
         setLightVariable();
         readSensors();
@@ -92,9 +85,7 @@ void readSensors() {
     readLDRSensor();
     readMicrowaveSensor();
     readtemperatureHumidity();
-#ifdef PIR
-    readPIRSensor();
-#endif
+
 }
 
 void readLDRSensor() {
@@ -107,7 +98,7 @@ void readtemperatureHumidity(){
    float humi = dht.readHumidity();
     float temp = dht.readTemperature();
     if (isnan(humi) || isnan(temp)) {
-        Serial.println("Failed to read from DHT sensor!");
+        // Serial.println("Failed to read from DHT sensor!");
         return;
     }
     humidity = (int)humi;
@@ -115,12 +106,6 @@ void readtemperatureHumidity(){
 }
 
 void readMicrowaveSensor() { microMotion = digitalRead(microPin); }
-
-// Uncomment this line if PIR is connected/available
-#ifdef PIR
-void readPIRSensor() { pirMotion = digitalRead(pirPin); }
-#endif
-
 
 void setLightVariable() {
     int lightOffVal = 0;
@@ -155,9 +140,6 @@ void setLightVariable() {
 }
 
 void updateRelay() {
-#ifdef PIR
-    microMotion = (microMotion || pirMotion) ? 1 : 0;
-#endif
 
     relayState = digitalRead(relayPin);
 
@@ -200,9 +182,12 @@ void updateRelay() {
         condition = 9;
     }
 
-    if (wifiDisabled == 0 && relayState != digitalRead(relayPin)) {
-        if (isWifiConnected()) {
-            pushDeviceState(0);
+    if (wifiDisabled == 0 && relayState != digitalRead(relayPin)&& !node) {
+        if (isWifiConnected()&& !node) {
+            pushDeviceState();
+        }
+        else if (!node) {
+            broadcastDeviceState();
         }
     }
 }
@@ -219,10 +204,6 @@ String getDeviceStatus() {
     response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
     response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
     response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
-#ifdef PIR
-    response += "\"pir_sensor_pin\":" + String(pirPin) + ",";
-    response += "\"pir_sensor_pin_state\":" + String(pirMotion) + ",";
-#endif
     response += "\"ldr_sensor_pin\":" + String(ldrPin) + ",";
     if (ldrPin == 17) {
         response += "\"ldr_sensor_pin_val\":" + String(ldrVal) + ",";

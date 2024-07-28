@@ -9,6 +9,7 @@
 #include "HTTPRoutes.h"
 #include "Variables.h"
 #include "WIFIControl.h"
+#include "UdpMeshControl.h"
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "in.pool.ntp.org", 19800);
@@ -233,6 +234,12 @@ void messageReceived(const char *topic, const byte *payload, const unsigned int 
         sbDeviceId = valueStr.toInt();
         EEPROM.write(77, sbDeviceId);
         EEPROM.commit();
+    } else if(command.equals( "MeshNetwork")){
+      bool MeshMode = valueStr.equals("1");
+      EEPROM.write(77, MeshMode);
+      EEPROM.commit();
+      Serial.print("MeshNetwork is set to be : ");
+      Serial.println(EEPROM.read(77));
     } else {
         Serial.println("Unknown command");
     }
@@ -250,29 +257,20 @@ void reconnect() {
 
 bool isMqttConnected() { return pubSubClient.connected(); }
 
-void pushDeviceState(int heartBeat) {
+void pushDeviceState() {
     const time_t currentTime = timeClient.getEpochTime();
     tm timeinfo{};
     gmtime_r(&currentTime, &timeinfo);
     String dateTimeString(asctime(&timeinfo));
     dateTimeString.trim();
-
+    
     String jsonMessage = "{";
     jsonMessage += R"("date":")" + dateTimeString + "\",";
     jsonMessage += R"("deviceID":")" + deviceID + "\",";
     jsonMessage += "\"motionState\":" + String(microMotion) + ",";
     jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
     jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
-    if (heartBeat == 1) {
-        jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
-        jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\","; 
-        jsonMessage += R"("temperature":")" + String(temperature) + "\",";
-        jsonMessage += R"("humidity":")" + String(humidity) + "\",";
-
-    } else{
-        jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
-    }
-    jsonMessage += "\"heartBeat\":" + String(heartBeat);
+    jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
     jsonMessage += "}";
 
     pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
@@ -282,6 +280,30 @@ void pushDeviceState(int heartBeat) {
     Serial.println(jsonMessage.c_str());
 #endif
 }
+void publishDeviceHeartbeat(){
+    const time_t currentTime = timeClient.getEpochTime();
+    tm timeinfo{};
+    gmtime_r(&currentTime, &timeinfo);
+    String dateTimeString(asctime(&timeinfo));
+    dateTimeString.trim();
+    String MacAddress = getDeviceMacAddress();
+
+    String jsonMessage = "{";
+    jsonMessage += R"("date":")" + dateTimeString + "\",";
+    jsonMessage += R"("deviceID":")" + deviceID + "\",";
+    jsonMessage += "\"motionState\":" + String(microMotion) + ",";
+    jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
+    jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
+    jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
+    jsonMessage += R"("deviceMac":")" + String(MacAddress) + "\","; 
+    jsonMessage += R"("temperature":")" + String(temperature) + "\",";
+    jsonMessage += R"("humidity":")" + String(humidity) + "\",";
+    jsonMessage += "\"heartBeat\":" + String(1);
+    jsonMessage += "}";
+
+    pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
+
+}
 
 void handleMQTT() {
 
@@ -289,10 +311,7 @@ void handleMQTT() {
         reconnect();
     } else {
         pubSubClient.loop();
-        if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatIntervalTime) {
-            pushDeviceState(1);
-            lastHeartbeatTime = millis();
-        }
+        handleHeartbeat();
     }
 }
 
@@ -311,4 +330,15 @@ bool updateNtpTimeWithRetries() {
         }
     }
     return false;
+}
+
+void handleHeartbeat() {
+    if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatIntervalTime) {
+        if(!node){
+         publishDeviceHeartbeat(); 
+        }else if(node) {
+            broadcastHeartbeat();
+        }
+        lastHeartbeatTime = millis();
+    }
 }

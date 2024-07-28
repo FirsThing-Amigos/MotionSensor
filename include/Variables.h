@@ -13,7 +13,7 @@
 
 #define DEBUG
 // #define SOCKET
-// #define PIR;
+
 
 // Define global variables here
 extern const String deviceMacAddress;
@@ -27,20 +27,19 @@ extern uint8_t restartCounter;
 extern uint8_t wifiDisabled;
 extern unsigned long restartTimerCounter;
 extern unsigned long heartbeatIntervalTime;
+extern bool MeshNetwork;
+extern bool node;
+extern bool nodeHotspot;
 
 extern int ldrPin;
 extern int microPin;
 extern int relayPin;
 extern int tempHumiPin;
-#ifdef PIR
-extern int pirPin;
-extern int pirMotion;
-#endif
+
 
 extern int maxAttempts;
 extern int light;
 extern int microMotion;
-extern int pirMotion;
 extern int ldrVal;
 extern int pval;
 extern int lowLightThreshold;

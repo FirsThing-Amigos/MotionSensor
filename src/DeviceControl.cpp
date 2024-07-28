@@ -211,6 +211,7 @@ String getDeviceStatus() {
     response += "\"DHT_sensor_pin\":" + String(tempHumiPin) + ",";
     response += "\"Temperature_value\":" + String(temperature) + ",";
     response += "\"Humidity_value\":" + String(humidity) + ",";
+    response += "\"Mesh_enabled\":" + String(MeshNetwork) + ",";
 
     response += "\"ldr_sensor_pin_state\":" + String(light) + ",";
     response += "\"relay_pin\":" + String(relayPin) + ",";

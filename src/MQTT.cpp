@@ -236,7 +236,7 @@ void messageReceived(const char *topic, const byte *payload, const unsigned int 
         EEPROM.commit();
     } else if(command.equals( "MeshNetwork")){
       bool MeshMode = valueStr.equals("1");
-      EEPROM.write(77, MeshMode);
+      EEPROM.write(87, MeshMode);
       EEPROM.commit();
       Serial.print("MeshNetwork is set to be : ");
       Serial.println(EEPROM.read(77));
@@ -300,8 +300,9 @@ void publishDeviceHeartbeat(){
     jsonMessage += R"("humidity":")" + String(humidity) + "\",";
     jsonMessage += "\"heartBeat\":" + String(1);
     jsonMessage += "}";
-
     pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
+    Serial.print("HeartBeat Publish : ");
+    Serial.println( pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str()));
 
 }
 
@@ -334,9 +335,10 @@ bool updateNtpTimeWithRetries() {
 
 void handleHeartbeat() {
     if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatIntervalTime) {
+
         if(!node){
-         publishDeviceHeartbeat(); 
-        }else if(node) {
+            publishDeviceHeartbeat(); 
+        } else if(node) {
             broadcastHeartbeat();
         }
         lastHeartbeatTime = millis();

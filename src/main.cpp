@@ -65,9 +65,9 @@ void initConfig() {
     heartbeatInterval = (EEPROM.read(65) > 0) ? EEPROM.read(65) : heartbeatInterval;
     sbDeviceId = (EEPROM.read(77) > 0) ? EEPROM.read(77) : sbDeviceId;
     wifiDisabled = EEPROM.read(81);
-    MeshNetwork = (EEPROM.read(77) > 0) ? true : MeshNetwork;
+    MeshNetwork = (EEPROM.read(87) > 0) ? true : MeshNetwork;
     if(MeshNetwork){
-        Serial.println("WMesh Netwrok Mode is Active!!!");
+        Serial.println("Mesh Netwrok Mode is Active!!!");
 
     }
     if (wifiDisabled != 0){
@@ -116,9 +116,7 @@ void initServers() {
 }
 
 void handleServers() {
-
     handleHTTP(server);
-
 #ifdef SOCKET
     handleWebSocket();
 #endif
@@ -138,7 +136,7 @@ void handleConfigMode() {
     if (restartCounter == 3) {
         initHotspot();
         saveResetCounter(0);
-        Serial.printf("hotspot mode end");
+        // Serial.printf("hotspot mode end");
     }
     else{
         if (wifiDisabled == 0){
@@ -149,7 +147,10 @@ void handleConfigMode() {
     }
 }
 void checkMesh(WiFiClientSecure& wifiClientSecureOTA) {
+    
     if (!node) {
+        Serial.print("Node : ");
+        Serial.println(node);
         if (otaUrl.length() == 0) {
           initServers();
         } else {
@@ -202,7 +203,7 @@ void loop() {
         }
         
     }
-    if (!MeshNetwork){
+    if (!node){
         handleServers();
     }
     // handleServers();

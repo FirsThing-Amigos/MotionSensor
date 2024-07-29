@@ -445,10 +445,10 @@ bool isVariableDefined(const String &variableName) {
         }
     } else if(variableName == "MeshNetwork"){
       bool MeshMode = value.equals("1");
-      EEPROM.write(77, MeshMode);
+      EEPROM.write(87, MeshMode);
       EEPROM.commit();
       Serial.print("MeshNetwork is set to be : ");
-      Serial.println(EEPROM.read(77));
+      Serial.println(EEPROM.read(87));
     } else {
         return false;
     }

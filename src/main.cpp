@@ -66,6 +66,10 @@ void initConfig() {
     sbDeviceId = (EEPROM.read(77) > 0) ? EEPROM.read(77) : sbDeviceId;
     wifiDisabled = EEPROM.read(81);
     MeshNetwork = (EEPROM.read(77) > 0) ? true : MeshNetwork;
+    if(MeshNetwork){
+        Serial.println("WMesh Netwrok Mode is Active!!!");
+
+    }
     if (wifiDisabled != 0){
         Serial.println("Wi-Fi Disabled Mode Active!!!");
 

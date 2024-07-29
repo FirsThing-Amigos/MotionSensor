@@ -3,10 +3,6 @@
 #define MQTT_h
 
 #include <Arduino.h>
-#include <WiFiClientSecure.h>
-#include <PubSubClient.h>
-extern WiFiClientSecure wifiClientSecure;
-extern PubSubClient pubSubClient;
 
 void initMQTT();
 void connectToMqtt();
@@ -19,4 +15,5 @@ void publishDeviceHeartbeat();
 void handleMQTT();
 bool updateNtpTimeWithRetries();
 void handleHeartbeat();
+void publishUdpDataToMqtt(const char *message);
 #endif

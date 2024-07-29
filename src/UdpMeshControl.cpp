@@ -81,7 +81,7 @@ void forwardingIncomingPackets() {
           sendUdpPacket(incomingPacket);
         }
         else{
-          pubSubClient.publish("sensors/heartbeat", incomingPacket);
+          publishUdpDataToMqtt(incomingPacket);
         }
     }
 }
@@ -122,7 +122,7 @@ void broadcastHeartbeat(){
   jsonMessage += "\"motionState\":" + String(microMotion) + ",";
   jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
   jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
-  jsonMessage += R"("deviceMac":")" + String(MacAddress) + "\","; 
+  // jsonMessage += R"("deviceMac":")" + String(MacAddress) + "\","; 
   // jsonMessage += R"("temperature":")" + String(temperature) + "\",";
   // jsonMessage += R"("humidity":")" + String(humidity) + "\",";
   jsonMessage += "}";

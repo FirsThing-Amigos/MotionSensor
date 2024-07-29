@@ -273,7 +273,7 @@ void pushDeviceState() {
     jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
     jsonMessage += "}";
 
-    pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
+    pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
 
 #ifdef DEBUG
     Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
@@ -301,7 +301,7 @@ void publishDeviceHeartbeat(){
     jsonMessage += "\"heartBeat\":" + String(1);
     jsonMessage += "}";
 
-    pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
+    pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
 
 }
 
@@ -341,4 +341,24 @@ void handleHeartbeat() {
         }
         lastHeartbeatTime = millis();
     }
+}
+
+void publishUdpDataToMqtt(const char *message){
+    const time_t currentTime = timeClient.getEpochTime();
+    tm timeinfo{};
+    gmtime_r(&currentTime, &timeinfo);
+    String dateTimeString(asctime(&timeinfo));
+    dateTimeString.trim();
+
+    String UdpMessage = String(message);
+    int insertPos = UdpMessage.lastIndexOf('}');
+    String newKeyValue = "\"date\": \"" + dateTimeString + "\"";
+    if (insertPos != -1) {
+        if (UdpMessage.charAt(insertPos - 1) != '{') {
+            UdpMessage = UdpMessage.substring(0, insertPos) + "," + newKeyValue + UdpMessage.substring(insertPos);
+        } else {
+            UdpMessage = UdpMessage.substring(0, insertPos) + newKeyValue + UdpMessage.substring(insertPos);
+        }
+    }
+    pubSubClient.publish("sensors/heartbeat/stage", UdpMessage.c_str());
 }

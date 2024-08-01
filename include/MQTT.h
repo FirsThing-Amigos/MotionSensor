@@ -3,6 +3,12 @@
 #define MQTT_h
 
 #include <Arduino.h>
+extern String subTopic;
+extern const int initialReconnectDelay ; 
+extern int currentReconnectDelay;
+extern int reconnectAttemptCount;
+extern const int maxReconnectAttempts;
+extern String subTopic;
 
 void initMQTT();
 void connectToMqtt();

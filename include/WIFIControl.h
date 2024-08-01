@@ -5,6 +5,8 @@
 
 extern unsigned long previousMillis123;
 extern const unsigned long resetCounterTime;
+extern const int wifiDisconnectDuration ; // 30 minutes in milliseconds
+void handleWiFiDisconnection();
 
 String getDeviceMacAddress();
 void initWifi();

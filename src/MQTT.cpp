@@ -268,6 +268,10 @@ void pushDeviceState(int heartBeat) {
         jsonMessage += R"("deviceMac":")" + String(deviceMacAddress) + "\","; 
         jsonMessage += R"("temperature":")" + String(temperature) + "\",";
         jsonMessage += R"("humidity":")" + String(humidity) + "\",";
+        jsonMessage += R"("energyConsumed":")" + String(energyConsumed) + "\",";
+        jsonMessage += R"("voltage":")" + String(realTimeVoltage) + "\",";
+        jsonMessage += R"("current":")" + String(realTimeCurrent) + "\",";
+
 
     } else{
         jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
@@ -275,10 +279,10 @@ void pushDeviceState(int heartBeat) {
     jsonMessage += "\"heartBeat\":" + String(heartBeat);
     jsonMessage += "}";
 
-    pubSubClient.publish("sensors/heartbeat", jsonMessage.c_str());
+    pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
 
 #ifdef DEBUG
-    Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
+    Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat/stage"));
     Serial.println(jsonMessage.c_str());
 #endif
 }
@@ -290,7 +294,10 @@ void handleMQTT() {
     } else {
         pubSubClient.loop();
         if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatIntervalTime) {
+            readVotalgeAndTemperature();
             pushDeviceState(1);
+            energyConsumed = 0;
+            saveTOEEPROM(83,energyConsumed);
             lastHeartbeatTime = millis();
         }
     }

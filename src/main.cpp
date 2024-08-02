@@ -31,6 +31,8 @@ bool isOtaMode = false;
 String otaUrl;
 uint8_t wifiDisabled;
 
+unsigned long energyConsumed = 0;
+
 #if defined(ESP8266)
   ESP8266WebServer server(80);
 #elif defined(ESP32)
@@ -43,6 +45,11 @@ unsigned long lightOffWaitTime = 120;  // lightOffWaitTime is stored in second
 int lowLightThreshold = 140;
 int heartbeatInterval = 60; // heartbeatInterval is stored in second
 unsigned long restartTimerCounter;
+unsigned int wattSec = 0;
+unsigned long lastUpdate = 0;
+unsigned long previousupdate = 0;
+const long interval = 1000;
+const long energyConsumedTime = 60000;
 
 void initRestartCounter(){
     EEPROM.begin(FS_SIZE);
@@ -63,8 +70,14 @@ void initConfig() {
     wifiDisabled = EEPROM.read(81);
     if (wifiDisabled != 0){
         Serial.println("Wi-Fi Disabled Mode Active!!!");
-
     }
+
+    energyConsumed = readFromEEPROM(83);
+    Serial.println(energyConsumed);
+    if (energyConsumed <= 0){
+        saveTOEEPROM(83,0);
+    }
+
 
     String tempOtaUrl = "";
     char otaUrlBuffer[FS_SIZE];
@@ -147,6 +160,7 @@ void setup() {
     initConfig();
     initDevices();
     handleConfigMode();
+    initEnergyMetering();
     if (otaUrl.length() == 0) {
         initServers();
     } else {
@@ -166,9 +180,31 @@ void loop() {
     if (!disabled) {
         updateRelay();
     }
+
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastUpdate >= interval) {
+        lastUpdate = currentMillis;
+        wattSec = wattSec + hlw8012.getActivePower();
+        Serial.print("wattSec: ");
+        Serial.println(wattSec);
+
+    }
+    unsigned long CURRENTMilliss = millis();
+    if (CURRENTMilliss - previousupdate >= energyConsumedTime && wattSec > 0 ) {
+        previousupdate = currentMillis;
+        energyConsumed = energyConsumed + wattSec;
+        Serial.print("energyConsumed in time loop 2 min");
+        Serial.println(energyConsumed);
+        wattSec = 0;
+        saveTOEEPROM(83,energyConsumed);
+        Serial.print("energyConsumed: ");
+        Serial.println(energyConsumed);
+    }
+
     if (shouldResetCounterTime()){
         saveResetCounter(0);
     }
+    
 
     if (!isOtaMode) {
         if (hotspotActive) {

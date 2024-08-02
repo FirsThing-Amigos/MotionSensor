@@ -1,9 +1,13 @@
+#include <Arduino.h>
+#include <EEPROM.h>
 #include "DeviceControl.h"
 #include "WIFIControl.h"
 #include "HTTPRoutes.h"
 #include "MQTT.h"
 #include "Variables.h"
 #include <DHT.h>
+// #include <HLW8012.h>
+#include "HLW8012.h"
 #ifdef ESP8266
     #include "core_esp8266_features.h"
 #elif defined(ESP32)
@@ -20,7 +24,10 @@ const auto *internetCheckHost = "www.google.com";
     int ldrPin = 17; // 5 For Digital LDR And 17 For Analog
     int microPin = 4;
     int relayPin = 13;
-    int tempHumiPin = 5;
+    int tempHumiPin = 10;
+    int SEL_PIN = 5;
+    int CF1_PIN = 12;
+    int CF_PIN  = 14;
 #elif defined(ESP32)
     uint64_t chipId64 = ESP.getEfuseMac();
     const String chipId = String((uint16_t)(chipId64 >> 32)); // Use the upper 32 bits for uniqueness
@@ -28,10 +35,15 @@ const auto *internetCheckHost = "www.google.com";
     int microPin = 21;
     int relayPin = 23;
     int tempHumiPin = 4;
+    int SEL_PIN = 16;
+    int CF1_PIN = 17;
+    int CF_PIN  = 18;
 
 #endif
 
 String deviceID;
+HLW8012 hlw8012;
+
 
 #ifdef PIR
 int pirPin = 5; // 14 or 5 Pin Number Uncomment this line if PIR is connected/available
@@ -41,6 +53,8 @@ int light = -1;
 int microMotion = -1;
 int temperature = 0;
 int humidity = 0;
+float realTimeVoltage = 0;
+float realTimeCurrent = 0;
 
 #ifdef PIR
 int pirMotion = -1;
@@ -107,12 +121,41 @@ void readtemperatureHumidity(){
    float humi = dht.readHumidity();
     float temp = dht.readTemperature();
     if (isnan(humi) || isnan(temp)) {
-        Serial.println("Failed to read from DHT sensor!");
+        // Serial.println("Failed to read from DHT sensor!");
         return;
     }
     humidity = (int)humi;
     temperature = (int)temp;
 }
+
+void readVotalgeAndTemperature(){
+    realTimeVoltage = hlw8012.getVoltage();
+    realTimeCurrent = hlw8012.getCurrent();
+}
+
+void ICACHE_RAM_ATTR hlw8012_cf1_interrupt() {
+    hlw8012.cf1_interrupt();
+}
+void ICACHE_RAM_ATTR hlw8012_cf_interrupt() {
+    hlw8012.cf_interrupt();
+}
+
+void setInterrupts() {
+    attachInterrupt(digitalPinToInterrupt(CF1_PIN), hlw8012_cf1_interrupt, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(CF_PIN), hlw8012_cf_interrupt, CHANGE);
+}
+
+void initEnergyMetering() {
+    hlw8012.begin(CF_PIN, CF1_PIN, SEL_PIN, CURRENT_MODE, true);
+    hlw8012.setResistors(CURRENT_RESISTOR, VOLTAGE_RESISTOR_UPSTREAM, VOLTAGE_RESISTOR_DOWNSTREAM, current_callibration_factor, voltage_callibration_factor, power_callibration_factor);
+    Serial.print("[HLW] Default current multiplier : "); Serial.println(hlw8012.getCurrentMultiplier());
+    Serial.print("[HLW] Default voltage multiplier : "); Serial.println(hlw8012.getVoltageMultiplier());
+    Serial.print("[HLW] Default power multiplier   : "); Serial.println(hlw8012.getPowerMultiplier());
+    Serial.println();
+    setInterrupts();
+    readVotalgeAndTemperature();
+}
+
 
 void readMicrowaveSensor() { microMotion = digitalRead(microPin); }
 
@@ -271,4 +314,15 @@ bool checkInternetConnectivity() {
     // If connection fails, return false (internet is not accessible)
     client.stop();
     return false;
+}
+
+void saveTOEEPROM(int address,unsigned long value){
+    EEPROM.put(address, value);
+    EEPROM.commit();
+}
+
+unsigned int readFromEEPROM(int address){
+    unsigned long retriveValue;
+    EEPROM.get(address, retriveValue);
+    return retriveValue;
 }

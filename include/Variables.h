@@ -16,6 +16,24 @@
 // #define PIR;
 
 // Define global variables here
+#ifdef ESP8266
+#define CURRENT_RESISTOR                0.001
+#define VOLTAGE_RESISTOR_UPSTREAM       ( 5 * 470000 ) // Real: 2280k
+#define VOLTAGE_RESISTOR_DOWNSTREAM     ( 1000 ) // Real 1.009k
+#define current_callibration_factor 0.568
+#define voltage_callibration_factor 1.073
+#define power_callibration_factor 0.619
+
+#elif defined(ESP32)
+#define CURRENT_RESISTOR                0.001
+#define VOLTAGE_RESISTOR_UPSTREAM       ( 5 * 470000 ) // Real: 2280k
+#define VOLTAGE_RESISTOR_DOWNSTREAM     ( 1000 ) // Real 1.009k
+#define current_callibration_factor 1
+#define voltage_callibration_factor 2
+#define power_callibration_factor 3
+
+#endif
+#define CURRENT_MODE                    HIGH
 extern const String deviceMacAddress;
 extern const String chipId;
 extern String deviceID;
@@ -32,6 +50,9 @@ extern int ldrPin;
 extern int microPin;
 extern int relayPin;
 extern int tempHumiPin;
+extern int SEL_PIN;                      
+extern int CF1_PIN;
+extern  int CF_PIN;
 #ifdef PIR
 extern int pirPin;
 extern int pirMotion;
@@ -46,12 +67,17 @@ extern int pval;
 extern int lowLightThreshold;
 extern int temperature;
 extern int humidity;
+extern unsigned long energyConsumed;
+extern float realTimeVoltage;
+extern float realTimeCurrent;
+
 
 extern bool disabled;
 extern bool relayState;
 extern bool shouldRestart;
 extern bool isOtaMode;
 extern bool hotspotActive;
+
 
 extern unsigned long lastMotionTime;
 extern unsigned long lightOffWaitTime;

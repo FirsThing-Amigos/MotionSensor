@@ -16,7 +16,9 @@ int sbDeviceId;
 
 void initHttpServer() {
     server.on("/", HTTP_GET, handleRoot);
-    server.on("/status", HTTP_GET, handleSensorStatus);
+    server.on("/status", HTTP_GET, []() { handleSensorStatus(0); });
+    server.on("/status_mode", HTTP_GET, []() { handleSensorStatus(1); });
+    server.on("/status_sensor", HTTP_GET, []() { handleSensorStatus(2); });
     server.on("/wifi", HTTP_GET, handleWifiSettings);
     server.on("/saveWifi", HTTP_POST, handleSaveWifi);
     server.on("/updateVariable", HTTP_POST, handleUpdateVariable);
@@ -232,9 +234,21 @@ void handleRoot() {
     server.send(200, "text/html", html);
 }
 
-void handleSensorStatus() {
+void handleSensorStatus(uint8_t value) {
+  if (value == 0){
     String response = getDeviceStatus();
     sendServerResponse(200, true, response);
+  }
+  else if (value == 1){
+    String response = getDeviceModeStatus();
+    sendServerResponse(200, true, response);
+  }
+  else if (value == 2){
+    String response = getDeviceSensorStatus();
+    sendServerResponse(200, true, response);
+  }
+  else{}
+
 }
 
 void handleWifiSettings() {

@@ -15,4 +15,7 @@ void updateRelay();
 String getDeviceStatus();
 void restartESP();
 bool checkInternetConnectivity();
+String getAwsThingName();
+String getDeviceModeStatus();
+String getDeviceSensorStatus();
 #endif

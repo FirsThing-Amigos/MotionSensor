@@ -17,7 +17,7 @@ extern WiFiClientSecure wifiClientSecureOTA;
 
 void initHttpServer();
 void handleRoot();
-void handleSensorStatus();
+void handleSensorStatus(uint8_t value);
 void handleWifiSettings();
 void handleSaveWifi();
 void handleUpdateVariable();

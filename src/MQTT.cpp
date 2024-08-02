@@ -19,7 +19,7 @@ PubSubClient pubSubClient(wifiClientSecure);
 
 const char *mqttHost = "a38blua3zelira-ats.iot.ap-south-1.amazonaws.com";
 constexpr int mqttPort = 8883;
-const char *thingName = "ESP-Devices";
+// const char *thingName = "ESP-Devices";
 // const char* thingName = "YogeshHouseMotionSensor_3";
 
 unsigned long lastReconnectAttempt = 0;
@@ -27,6 +27,11 @@ unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
 unsigned long lastHeartbeatTime = 0;
 unsigned long heartbeatIntervalTime = heartbeatInterval *1000;
+const int initialReconnectDelay = 180000; 
+int currentReconnectDelay = initialReconnectDelay;
+int reconnectAttemptCount = 0;
+const int maxReconnectAttempts = 4;
+String subTopic;
 
 static constexpr char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
@@ -120,7 +125,7 @@ void initMQTT() {
     const String pubTopic = ("sensor/" + String(getDeviceID()) + "/state/pub");
 #ifdef DEBUG
     Serial.print(F("mqttServer ThingName: "));
-    Serial.println(thingName);
+    Serial.println(getAwsThingName());
     Serial.print(F("mqttServer Pub Topic: "));
     Serial.println(pubTopic);
     Serial.print(F("mqttServer mqttHost: "));
@@ -143,13 +148,15 @@ void initMQTT() {
     pubSubClient.setServer(mqttHost, mqttPort);
     pubSubClient.setCallback(messageReceived);
 #ifdef DEBUG
-    Serial.print(F("Connecting to AWS IOT"));
+    Serial.println(F("Connecting to AWS IOT"));
 #endif
     connectToMqtt();
+    Serial.print(" Dynamic memory after connectToMqtt is : ");
+    Serial.println(ESP.getFreeHeap());
 
     if (pubSubClient.connected()) {
         Serial.println(F("AWS IoT Connected!"));
-        const String subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
+        subTopic = ("sensor/" + String(getDeviceID()) + "/state/sub");
         pubSubClient.subscribe(subTopic.c_str());
         Serial.print(subTopic);
         Serial.println(F(": Subscribed!"));
@@ -157,10 +164,14 @@ void initMQTT() {
 }
 
 void connectToMqtt() {
+    Serial.print("Inside connectToMqtt function Dynamic memory is : ");
+    Serial.println(ESP.getFreeHeap());
     mqttConnectStartTime = millis();
+    String thingName = getAwsThingName();
 
-    while (!pubSubClient.connect(thingName)) {
-        Serial.print(".");
+    while (!pubSubClient.connect(thingName.c_str())) {
+        Serial.print(pubSubClient.connect(thingName.c_str()));
+        Serial.println(".");
         if (millis() - mqttConnectStartTime >= mqttConnectTimeout) {
 #ifdef DEBUG
             Serial.print(F("Failed to connect to AWS IoT, rc="));
@@ -239,19 +250,38 @@ void messageReceived(const char *topic, const byte *payload, const unsigned int 
       EEPROM.write(87, MeshMode);
       EEPROM.commit();
       Serial.print("MeshNetwork is set to be : ");
-      Serial.println(EEPROM.read(77));
+      Serial.println(EEPROM.read(87));
     } else {
         Serial.println("Unknown command");
     }
 }
 
 void reconnect() {
-    if (!pubSubClient.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
+    if (!pubSubClient.connected() && (millis() - lastReconnectAttempt > static_cast<unsigned long>(
+                                          currentReconnectDelay))) {
         lastReconnectAttempt = millis();
-#ifdef DEBUG
-        Serial.print(F("Re-initiating Mqtt Connection"));
-#endif
-        connectToMqtt();
+        Serial.println("Attempting to reconnect to MQTT...");
+        initMQTT();
+        if (pubSubClient.connected()) {
+            Serial.println("Reconnected to MQTT");
+            pubSubClient.subscribe(subTopic.c_str());
+            reconnectAttemptCount = 0;
+            currentReconnectDelay = initialReconnectDelay; // Reset the delay on successful reconnect
+        } else {
+            reconnectAttemptCount++;
+            currentReconnectDelay *= 2; // Exponential backoff
+            Serial.print("Reconnect attempt ");
+            Serial.print(reconnectAttemptCount);
+            Serial.print(" failed, next attempt in ");
+            Serial.print(currentReconnectDelay / 60000);
+            Serial.println(" minutes.");
+
+            if (reconnectAttemptCount >= maxReconnectAttempts) {
+                Serial.println("Maximum reconnect attempts reached. Disconnecting WiFi...");
+                handleWiFiDisconnection();
+                restartESP();
+            }
+        }
     }
 }
 
@@ -265,20 +295,19 @@ void pushDeviceState() {
     dateTimeString.trim();
     
     String jsonMessage = "{";
-    jsonMessage += R"("date":")" + dateTimeString + "\",";
-    jsonMessage += R"("deviceID":")" + deviceID + "\",";
-    jsonMessage += "\"motionState\":" + String(microMotion) + ",";
-    jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
-    jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
-    jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
+    jsonMessage += "\"d\":\"" + dateTimeString + "\",";
+    jsonMessage += "\"dID\":\"" + deviceID + "\",";
+    jsonMessage += "\"mS\":" + String(microMotion) + ",";
+    jsonMessage += "\"lS\":" + String(ldrVal) + ",";
+    jsonMessage += "\"rS\":" + String(digitalRead(relayPin)) + ",";
+    jsonMessage += "\"sbDId\":\"" + String(sbDeviceId) + "\"";
     jsonMessage += "}";
 
-    pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
 
-#ifdef DEBUG
-    Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat"));
-    Serial.println(jsonMessage.c_str());
-#endif
+    pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
+    Serial.print("Relay Update is sending to Mqtt : ");
+    Serial.println(pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str()));
+
 }
 void publishDeviceHeartbeat(){
     const time_t currentTime = timeClient.getEpochTime();
@@ -289,20 +318,24 @@ void publishDeviceHeartbeat(){
     String MacAddress = getDeviceMacAddress();
 
     String jsonMessage = "{";
-    jsonMessage += R"("date":")" + dateTimeString + "\",";
-    jsonMessage += R"("deviceID":")" + deviceID + "\",";
-    jsonMessage += "\"motionState\":" + String(microMotion) + ",";
-    jsonMessage += "\"lightState\":" + String(ldrVal) + ",";
-    jsonMessage += "\"relayState\":" + String(digitalRead(relayPin)) + ",";
-    jsonMessage += R"("localIp":")" + serverIP.toString() + "\",";
-    jsonMessage += R"("deviceMac":")" + String(MacAddress) + "\","; 
-    jsonMessage += R"("temperature":")" + String(temperature) + "\",";
-    jsonMessage += R"("humidity":")" + String(humidity) + "\",";
-    jsonMessage += "\"heartBeat\":" + String(1);
+    jsonMessage += R"("d":")" + dateTimeString + "\",";
+    jsonMessage += R"("dID":")" + deviceID + "\",";
+    jsonMessage += "\"mS\":" + String(microMotion) + ",";
+    jsonMessage += "\"lS\":" + String(ldrVal) + ",";
+    jsonMessage += "\"rS\":" + String(digitalRead(relayPin)) + ",";
+    jsonMessage += R"("lIp":")" + serverIP.toString() + "\",";
+    jsonMessage += R"("dMac":")" + String(MacAddress) + "\","; 
+    // jsonMessage += R"("temp":")" + String(temperature) + "\",";
+    // jsonMessage += R"("humi":")" + String(humidity) + "\",";
+    jsonMessage += "\"hB\":" + String(1);
     jsonMessage += "}";
-    pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
+    // pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str());
+    #ifdef DEBUG
+        Serial.println(F("Device Heartbeat published to MQTT topic: sensors/heartbeat/stage"));
+        Serial.println(jsonMessage.c_str());
+    #endif
     Serial.print("HeartBeat Publish : ");
-    Serial.println( pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str()));
+    Serial.println(pubSubClient.publish("sensors/heartbeat/stage", jsonMessage.c_str()));
 
 }
 
@@ -354,7 +387,7 @@ void publishUdpDataToMqtt(const char *message){
 
     String UdpMessage = String(message);
     int insertPos = UdpMessage.lastIndexOf('}');
-    String newKeyValue = "\"date\": \"" + dateTimeString + "\"";
+    String newKeyValue = "\"d\": \"" + dateTimeString + "\"";
     if (insertPos != -1) {
         if (UdpMessage.charAt(insertPos - 1) != '{') {
             UdpMessage = UdpMessage.substring(0, insertPos) + "," + newKeyValue + UdpMessage.substring(insertPos);
@@ -362,5 +395,8 @@ void publishUdpDataToMqtt(const char *message){
             UdpMessage = UdpMessage.substring(0, insertPos) + newKeyValue + UdpMessage.substring(insertPos);
         }
     }
-    pubSubClient.publish("sensors/heartbeat/stage", UdpMessage.c_str());
+    Serial.println("UDP Packet send to mqtt :");
+    Serial.println(UdpMessage.c_str());
+    Serial.print("UDP Packet forwarded to mqtt : ");
+    Serial.println(pubSubClient.publish("sensors/heartbeat/stage", UdpMessage.c_str()));
 }

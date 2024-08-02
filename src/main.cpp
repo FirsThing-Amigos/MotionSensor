@@ -31,7 +31,7 @@ bool shouldRestart = false;
 bool isOtaMode = false;
 String otaUrl;
 uint8_t wifiDisabled;
-bool MeshNetwork;
+bool MeshNetwork = false;
 
 #if defined(ESP8266)
   ESP8266WebServer server(80);
@@ -65,20 +65,22 @@ void initConfig() {
     heartbeatInterval = (EEPROM.read(65) > 0) ? EEPROM.read(65) : heartbeatInterval;
     sbDeviceId = (EEPROM.read(77) > 0) ? EEPROM.read(77) : sbDeviceId;
     wifiDisabled = EEPROM.read(81);
-    MeshNetwork = (EEPROM.read(87) > 0) ? true : MeshNetwork;
+    MeshNetwork = (EEPROM.read(87) == 1) ? true : false;
     if(MeshNetwork){
         Serial.println("Mesh Netwrok Mode is Active!!!");
-
     }
     if (wifiDisabled != 0){
         Serial.println("Wi-Fi Disabled Mode Active!!!");
 
     }
+    if (disabled){
+        Serial.println("Device Disabled  Active!!!");
+    }
 
     String tempOtaUrl = "";
     char otaUrlBuffer[FS_SIZE];
     for (int i = 0; i < FS_SIZE; ++i) {
-        otaUrlBuffer[i] = static_cast<char>(EEPROM.read(88 + i));
+        otaUrlBuffer[i] = static_cast<char>(EEPROM.read(100 + i));
         if (otaUrlBuffer[i] == '\0')
             break;
     }
@@ -97,7 +99,6 @@ void initConfig() {
         }
     }
 }
-
 void initServers() {
     if(hotspotActive || wifiDisabled == 0){
         initHttpServer();
@@ -108,7 +109,7 @@ void initServers() {
         if (isOtaMode) {
             setupOTA();
         } else {
-            if (wifiDisabled == 0 && isWifiConnected()) {
+            if (wifiDisabled == 0  && !hotspotActive && !node) {
                 initMQTT();
             }
         }
@@ -126,17 +127,18 @@ void handleServers() {
 
     } else {
 
-        if (isWifiConnected()) {
+        if (isWifiConnected()&& !node) {
             handleMQTT();
         }
     }
 }
 
-void handleConfigMode() {
+void handleConfigMode(WiFiClientSecure& wifiClientSecureOTA) {
     if (restartCounter == 3) {
         initHotspot();
         saveResetCounter(0);
-        // Serial.printf("hotspot mode end");
+        MeshNetwork = false;
+        
     }
     else{
         if (wifiDisabled == 0){
@@ -145,21 +147,19 @@ void handleConfigMode() {
         }
 
     }
-}
-void checkMesh(WiFiClientSecure& wifiClientSecureOTA) {
-    
-    if (!node) {
-        Serial.print("Node : ");
-        Serial.println(node);
-        if (otaUrl.length() == 0) {
-          initServers();
-        } else {
-          performOTAUpdate(wifiClientSecureOTA);
-        }
+    if (otaUrl.length() == 0) {
+        initServers();
+    } else {
+        performOTAUpdate(wifiClientSecureOTA);
     }
-    unsigned long currentMillis = millis();
-    lastUpdateMillis = currentMillis;
+    if (MeshNetwork && !hotspotActive){
+        initmeshHotspot();
+        initmeshUdpListen();
+    }
 }
+
+
+
 
 void setup() {
     Serial.begin(115200);
@@ -167,8 +167,9 @@ void setup() {
     initRestartCounter();
     initConfig();
     initDevices();
-    handleConfigMode();
-    checkMesh(wifiClientSecureOTA);
+    handleConfigMode(wifiClientSecureOTA);
+    unsigned long currentMillis = millis();
+    lastUpdateMillis = currentMillis;
 }
 
 void loop() {
@@ -177,7 +178,7 @@ void loop() {
     if (shouldRestart) {
         restartESP();
     }
-
+ 
     if(nodeHotspot){
         forwardingIncomingPackets();
     }
@@ -185,7 +186,12 @@ void loop() {
     unsigned long currentMillis = millis();
     if (currentMillis - lastUpdateMillis >= MeshHotspotDeactiveTime && nodeHotspot) {
         lastUpdateMillis = currentMillis;  // Save the last time checkConnectedStations() was executed
-        checkConnectedStations();
+        int numStations = WiFi.softAPgetStationNum();
+        if (numStations == 0) {
+            WiFi.softAPdisconnect();
+            nodeHotspot = false;
+            Serial.println("No nodes are connected. Deactivating hotspot.");
+        }
     }
 
     readSensors();
@@ -200,13 +206,9 @@ void loop() {
     if (!isOtaMode) {
         if (hotspotActive) {
             deactivateHotspot();
-        }
-        
+        }  
     }
-    if (!node){
-        handleServers();
-    }
-    // handleServers();
+    handleServers();
 #ifdef SOCKET
     publishSensorStatus();
 #endif

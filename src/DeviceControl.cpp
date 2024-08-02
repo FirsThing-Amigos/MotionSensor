@@ -182,40 +182,24 @@ void updateRelay() {
         condition = 9;
     }
 
-    if (wifiDisabled == 0 && relayState != digitalRead(relayPin)&& !node) {
-        if (isWifiConnected()&& !node) {
+    if (wifiDisabled == 0 && relayState != digitalRead(relayPin)) {
+        if (!node){
             pushDeviceState();
         }
-        else if (!node) {
+        else{
             broadcastDeviceState();
         }
     }
 }
+    
+
 
 String getDeviceStatus() {
     String response;
 
     response += "{";
     response += R"("device_id":")" + String(deviceID) + "\",";
-    response += R"("device_disabled":")" + String(disabled) + "\",";
-    response += R"("condition":")" + String(condition) + "\",";
-    response += R"("thing_name":")" + String(thingName) + "\",";
     response += R"("mac_address":")" + String(getDeviceMacAddress()) + "\",";
-    response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
-    response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
-    response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
-    response += "\"ldr_sensor_pin\":" + String(ldrPin) + ",";
-    if (ldrPin == 17) {
-        response += "\"ldr_sensor_pin_val\":" + String(ldrVal) + ",";
-    }
-    response += "\"DHT_sensor_pin\":" + String(tempHumiPin) + ",";
-    response += "\"Temperature_value\":" + String(temperature) + ",";
-    response += "\"Humidity_value\":" + String(humidity) + ",";
-    response += "\"Mesh_enabled\":" + String(MeshNetwork) + ",";
-
-    response += "\"ldr_sensor_pin_state\":" + String(light) + ",";
-    response += "\"relay_pin\":" + String(relayPin) + ",";
-    response += "\"relay_pin_state\":" + String(relayState) + ",";
     response += "\"last_motion_time\":" + String(millis() - lastMotionTime) + ",";
     response += "\"millis\":" + String(millis()) + ",";
     response += "\"light_off_wait_time\":" + String(lightOffWaitTime * 1000) + ",";
@@ -230,6 +214,43 @@ String getDeviceStatus() {
     response += "\"light_variable\":" + String(lightVariable);
     response += "}";
 
+    return response;
+}
+String getDeviceModeStatus(){
+    String response;
+    response += "{";
+    response += R"("device_id":")" + String(deviceID) + "\",";
+    response += R"("device_disabled":")" + String(disabled) + "\",";
+    response += "\"mesh_enabled\":" + String(MeshNetwork) + ",";
+    if (MeshNetwork){
+        // response += "\"no_of conn_device\":" + String(isMqttConnected()) + ",";
+    }
+    response += "\"wif_disabled\":" + String(wifiDisabled) + ",";
+    response += "\"mqtt_connected\":" + String(isMqttConnected()) + ",";
+    response += "\"Mesh_node\":" + String(node);
+    response += "}";
+    
+    return response;
+}
+
+String getDeviceSensorStatus(){
+    String response;
+    response += "{";
+    response += R"("device_id":")" + String(deviceID) + "\",";
+    response += R"("condition":")" + String(condition) + "\",";
+    response += "\"microwave_sensor_pin\":" + String(microPin) + ",";
+    response += "\"microwave_sensor_pin_state\":" + String(microMotion) + ",";
+    response += "\"ldr_sensor_pin\":" + String(ldrPin) + ",";
+    if (ldrPin == 17) {
+        response += "\"ldr_sensor_pin_val\":" + String(ldrVal) + ",";
+    }
+    response += "\"DHT_sensor_pin\":" + String(tempHumiPin) + ",";
+    response += "\"Temperature_value\":" + String(temperature) + ",";
+    response += "\"Humidity_value\":" + String(humidity) + ",";
+    response += "\"relay_pin\":" + String(relayPin) + ",";
+    response += "\"relay_pin_state\":" + String(relayState);
+    response += "}";
+    
     return response;
 }
 
@@ -253,4 +274,8 @@ bool checkInternetConnectivity() {
     // If connection fails, return false (internet is not accessible)
     client.stop();
     return false;
+}
+String getAwsThingName() {
+    deviceID = getDeviceID();
+    return deviceID;
 }

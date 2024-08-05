@@ -22,6 +22,7 @@ unsigned long hotspotActivationTime = 0;
 constexpr unsigned long hotspotDeactivationDelay = 5 * 60 * 1000; // 5 minutes in milliseconds
 unsigned long previousMillis123 = 0;
 const unsigned long resetCounterTime = 60000;
+const int wifiDisconnectDuration = 1800000; // 30 minutes in milliseconds
 
 String getDeviceMacAddress() { 
     String deviceMacAddress = WiFi.macAddress();        
@@ -108,4 +109,9 @@ bool shouldResetCounterTime() {
 void saveResetCounter(int value){
     EEPROM.write(79, value);
     EEPROM.commit();
+}
+
+void handleWiFiDisconnection() {
+    WiFi.disconnect(true);
+    delay(wifiDisconnectDuration);
 }

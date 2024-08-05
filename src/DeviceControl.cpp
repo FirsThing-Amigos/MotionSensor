@@ -55,6 +55,7 @@ int temperature = 0;
 int humidity = 0;
 float realTimeVoltage = 0;
 float realTimeCurrent = 0;
+float realTimePowerFactor = 0;
 
 #ifdef PIR
 int pirMotion = -1;
@@ -131,6 +132,7 @@ void readtemperatureHumidity(){
 void readVotalgeAndTemperature(){
     realTimeVoltage = hlw8012.getVoltage();
     realTimeCurrent = hlw8012.getCurrent();
+    realTimePowerFactor = hlw8012.getPowerFactor();
 }
 
 void ICACHE_RAM_ATTR hlw8012_cf1_interrupt() {

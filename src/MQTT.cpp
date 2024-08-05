@@ -26,6 +26,11 @@ unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
 unsigned long lastHeartbeatTime = 0;
 unsigned long heartbeatIntervalTime = heartbeatInterval *1000;
+const int initialReconnectDelay = 180000; 
+int currentReconnectDelay = initialReconnectDelay;
+int reconnectAttemptCount = 0;
+const int maxReconnectAttempts = 4;
+String subTopic;
 
 static constexpr char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
@@ -239,12 +244,31 @@ void messageReceived(const char *topic, const byte *payload, const unsigned int 
 }
 
 void reconnect() {
-    if (!pubSubClient.connected() && (lastReconnectAttempt == 0 || millis() - lastReconnectAttempt > 300000)) {
+    if (!pubSubClient.connected() && (millis() - lastReconnectAttempt > static_cast<unsigned long>(
+                                          currentReconnectDelay))) {
         lastReconnectAttempt = millis();
-#ifdef DEBUG
-        Serial.print(F("Re-initiating Mqtt Connection"));
-#endif
-        connectToMqtt();
+        Serial.println("Attempting to reconnect to MQTT...");
+        initMQTT();
+        if (pubSubClient.connected()) {
+            Serial.println("Reconnected to MQTT");
+            pubSubClient.subscribe(subTopic.c_str());
+            reconnectAttemptCount = 0;
+            currentReconnectDelay = initialReconnectDelay; // Reset the delay on successful reconnect
+        } else {
+            reconnectAttemptCount++;
+            currentReconnectDelay *= 2; // Exponential backoff
+            Serial.print("Reconnect attempt ");
+            Serial.print(reconnectAttemptCount);
+            Serial.print(" failed, next attempt in ");
+            Serial.print(currentReconnectDelay / 60000);
+            Serial.println(" minutes.");
+
+            if (reconnectAttemptCount >= maxReconnectAttempts) {
+                Serial.println("Maximum reconnect attempts reached. Disconnecting WiFi...");
+                handleWiFiDisconnection();
+                restartESP();
+            }
+        }
     }
 }
 
@@ -271,8 +295,7 @@ void pushDeviceState(int heartBeat) {
         jsonMessage += R"("energyConsumed":")" + String(energyConsumed) + "\",";
         jsonMessage += R"("voltage":")" + String(realTimeVoltage) + "\",";
         jsonMessage += R"("current":")" + String(realTimeCurrent) + "\",";
-
-
+        jsonMessage += R"("powerFactor":")" + String(realTimePowerFactor) + "\",";
     } else{
         jsonMessage += R"("sbDeviceId":")" + String(sbDeviceId) + "\",";
     }

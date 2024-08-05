@@ -70,6 +70,7 @@ extern int humidity;
 extern unsigned long energyConsumed;
 extern float realTimeVoltage;
 extern float realTimeCurrent;
+extern float realTimePowerFactor;
 
 
 extern bool disabled;

@@ -22,7 +22,7 @@ from subprocess import call, check_output
 try:
     from urllib.parse import urlparse
 except ImportError:
-    from urlparse import urlparse
+    from urlparse import urlparse # type: ignore
 
 from fileinput import FileInput
 # https://github.com/python/cpython/commit/6cb7b659#diff-78790b53ff259619377058acd4f74672

@@ -11,7 +11,7 @@
 #define FS_SIZE 256 // Define filesystem size (256 bytes in this example)
 #define OTA_SIZE 786432 // Define OTA size (768KB in this example)
 
-#define DEBUG
+ #define DEBUG
 // #define SOCKET
 // #define PIR;
 

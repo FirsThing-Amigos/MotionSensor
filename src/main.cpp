@@ -155,6 +155,34 @@ void handleConfigMode() {
     }
 }
 
+void updateEnergyConsumption() {
+    unsigned long currentMillis = millis();
+    
+    if (currentMillis - lastUpdate >= interval) {
+        lastUpdate = currentMillis;
+        wattSec = wattSec + hlw8012.getActivePower();
+        #ifdef DEBUG
+            Serial.print("wattSec: ");
+            Serial.println(wattSec);
+        #endif
+    }
+
+    if (currentMillis - previousupdate >= energyConsumedTime && wattSec > 0) {
+        previousupdate = currentMillis;
+        energyConsumed = energyConsumed + wattSec;
+        #ifdef DEBUG
+            Serial.print("energyConsumed in time loop 2 min: ");
+            Serial.println(energyConsumed);
+        #endif
+        wattSec = 0;
+        saveTOEEPROM(83,energyConsumed);
+        #ifdef DEBUG
+            Serial.print("energyConsumed: ");
+            Serial.println(energyConsumed);
+        #endif
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     Serial.println("");
@@ -182,28 +210,9 @@ void loop() {
     if (!disabled) {
         updateRelay();
     }
+    updateEnergyConsumption();
 
-    unsigned long currentMillis = millis();
-    if (currentMillis - lastUpdate >= interval) {
-        lastUpdate = currentMillis;
-        wattSec = wattSec + hlw8012.getActivePower();
-        #ifdef DEBUG
-            Serial.print("wattSec: ");
-            Serial.println(wattSec);
-        #endif
-
-    }
-    unsigned long CURRENTMilliss = millis();
-    if (CURRENTMilliss - previousupdate >= energyConsumedTime && wattSec > 0 ) {
-        previousupdate = currentMillis;
-        energyConsumed = energyConsumed + wattSec;
-        Serial.print("energyConsumed in time loop 2 min");
-        Serial.println(energyConsumed);
-        wattSec = 0;
-        saveTOEEPROM(83,energyConsumed);
-        Serial.print("energyConsumed: ");
-        Serial.println(energyConsumed);
-    }
+    
 
     if (shouldResetCounterTime()){
         saveResetCounter(0);

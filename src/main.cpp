@@ -73,7 +73,9 @@ void initConfig() {
     }
 
     energyConsumed = readFromEEPROM(83);
-    Serial.println(energyConsumed);
+    #ifdef DEBUG
+        Serial.println(energyConsumed);
+    #endif
     if (energyConsumed <= 0){
         saveTOEEPROM(83,0);
     }
@@ -185,8 +187,10 @@ void loop() {
     if (currentMillis - lastUpdate >= interval) {
         lastUpdate = currentMillis;
         wattSec = wattSec + hlw8012.getActivePower();
-        Serial.print("wattSec: ");
-        Serial.println(wattSec);
+        #ifdef DEBUG
+            Serial.print("wattSec: ");
+            Serial.println(wattSec);
+        #endif
 
     }
     unsigned long CURRENTMilliss = millis();

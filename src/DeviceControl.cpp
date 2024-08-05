@@ -129,7 +129,7 @@ void readtemperatureHumidity(){
     temperature = (int)temp;
 }
 
-void readVotalgeAndTemperature(){
+void readVotalgeCurrentPowerfactor(){
     realTimeVoltage = hlw8012.getVoltage();
     realTimeCurrent = hlw8012.getCurrent();
     realTimePowerFactor = hlw8012.getPowerFactor();

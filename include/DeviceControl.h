@@ -22,7 +22,7 @@ void setLightVariable();
 void updateRelay();
 String getDeviceStatus();
 void restartESP();
-void readVotalgeAndTemperature();
+void readVotalgeCurrentPowerfactor();
 bool checkInternetConnectivity();
 unsigned int readFromEEPROM(int address);
 void saveTOEEPROM(int address,unsigned long value);

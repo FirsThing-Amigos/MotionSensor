@@ -317,7 +317,7 @@ void handleMQTT() {
     } else {
         pubSubClient.loop();
         if (lastHeartbeatTime == 0 || millis() - lastHeartbeatTime >= heartbeatIntervalTime) {
-            readVotalgeAndTemperature();
+            readVotalgeCurrentPowerfactor();
             pushDeviceState(1);
             energyConsumed = 0;
             saveTOEEPROM(83,energyConsumed);

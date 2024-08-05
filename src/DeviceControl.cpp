@@ -155,7 +155,7 @@ void initEnergyMetering() {
     Serial.print("[HLW] Default power multiplier   : "); Serial.println(hlw8012.getPowerMultiplier());
     Serial.println();
     setInterrupts();
-    readVotalgeAndTemperature();
+    readVotalgeCurrentPowerfactor();
 }
 
 

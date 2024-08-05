@@ -28,9 +28,9 @@
 #define CURRENT_RESISTOR                0.001
 #define VOLTAGE_RESISTOR_UPSTREAM       ( 5 * 470000 ) // Real: 2280k
 #define VOLTAGE_RESISTOR_DOWNSTREAM     ( 1000 ) // Real 1.009k
-#define current_callibration_factor 1
-#define voltage_callibration_factor 2
-#define power_callibration_factor 3
+#define current_callibration_factor 0.5318
+#define voltage_callibration_factor 20.583
+#define power_callibration_factor 0.5825
 
 #endif
 #define CURRENT_MODE                    HIGH

@@ -17,22 +17,19 @@
 
 // Define global variables here
 #ifdef ESP8266
-#define CURRENT_RESISTOR                0.001
-#define VOLTAGE_RESISTOR_UPSTREAM       ( 5 * 470000 ) // Real: 2280k
-#define VOLTAGE_RESISTOR_DOWNSTREAM     ( 1000 ) // Real 1.009k
 #define current_callibration_factor 0.568
 #define voltage_callibration_factor 1.073
 #define power_callibration_factor 0.619
 
 #elif defined(ESP32)
-#define CURRENT_RESISTOR                0.001
-#define VOLTAGE_RESISTOR_UPSTREAM       ( 5 * 470000 ) // Real: 2280k
-#define VOLTAGE_RESISTOR_DOWNSTREAM     ( 1000 ) // Real 1.009k
 #define current_callibration_factor 0.5318
 #define voltage_callibration_factor 20.583
 #define power_callibration_factor 0.5825
 
 #endif
+#define CURRENT_RESISTOR                0.001
+#define VOLTAGE_RESISTOR_UPSTREAM       ( 5 * 470000 ) // Real: 2280k
+#define VOLTAGE_RESISTOR_DOWNSTREAM     ( 1000 ) // Real 1.009k
 #define CURRENT_MODE                    HIGH
 extern const String deviceMacAddress;
 extern const String chipId;
